@@ -12,7 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NewArrivalsRouteImport } from './routes/new-arrivals'
 import { Route as PreOrderRouteImport } from './routes/pre-order'
-import { Route as ShopRouteImport } from './routes/shop'
+import { Route as ShopIndexRouteImport } from './routes/shop.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,9 +29,9 @@ const PreOrderRoute = PreOrderRouteImport.update({
   path: '/pre-order',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ShopRoute = ShopRouteImport.update({
-  id: '/shop',
-  path: '/shop',
+const ShopIndexRoute = ShopIndexRouteImport.update({
+  id: '/shop/',
+  path: '/shop/',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -39,34 +39,34 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/new-arrivals': typeof NewArrivalsRoute
   '/pre-order': typeof PreOrderRoute
-  '/shop': typeof ShopRoute
+  '/shop/': typeof ShopIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/new-arrivals': typeof NewArrivalsRoute
   '/pre-order': typeof PreOrderRoute
-  '/shop': typeof ShopRoute
+  '/shop': typeof ShopIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/new-arrivals': typeof NewArrivalsRoute
   '/pre-order': typeof PreOrderRoute
-  '/shop': typeof ShopRoute
+  '/shop/': typeof ShopIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/new-arrivals' | '/pre-order' | '/shop'
+  fullPaths: '/' | '/new-arrivals' | '/pre-order' | '/shop/'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/new-arrivals' | '/pre-order' | '/shop'
-  id: '__root__' | '/' | '/new-arrivals' | '/pre-order' | '/shop'
+  id: '__root__' | '/' | '/new-arrivals' | '/pre-order' | '/shop/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   NewArrivalsRoute: typeof NewArrivalsRoute
   PreOrderRoute: typeof PreOrderRoute
-  ShopRoute: typeof ShopRoute
+  ShopIndexRoute: typeof ShopIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -92,11 +92,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PreOrderRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/shop': {
-      id: '/shop'
+    '/shop/': {
+      id: '/shop/'
       path: '/shop'
-      fullPath: '/shop'
-      preLoaderRoute: typeof ShopRouteImport
+      fullPath: '/shop/'
+      preLoaderRoute: typeof ShopIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -106,7 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   NewArrivalsRoute: NewArrivalsRoute,
   PreOrderRoute: PreOrderRoute,
-  ShopRoute: ShopRoute,
+  ShopIndexRoute: ShopIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

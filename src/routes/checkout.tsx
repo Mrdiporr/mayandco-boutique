@@ -303,7 +303,6 @@ function CheckoutPage() {
         }}
       >
         <DialogContent
-          showCloseButton={stage !== "processing"}
           className="rounded-none border-border p-0 sm:max-w-md"
         >
           <div className="border-b border-border px-6 py-4">

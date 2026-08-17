@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as ExchangePolicyRouteImport } from './routes/exchange-policy'
 import { Route as NewArrivalsRouteImport } from './routes/new-arrivals'
 import { Route as PaymentPolicyRouteImport } from './routes/payment-policy'
@@ -21,6 +22,11 @@ import { Route as ShopSlugRouteImport } from './routes/shop.$slug'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExchangePolicyRoute = ExchangePolicyRouteImport.update({
@@ -61,6 +67,7 @@ const ShopSlugRoute = ShopSlugRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/checkout': typeof CheckoutRoute
   '/exchange-policy': typeof ExchangePolicyRoute
   '/new-arrivals': typeof NewArrivalsRoute
   '/payment-policy': typeof PaymentPolicyRoute
@@ -71,6 +78,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/checkout': typeof CheckoutRoute
   '/exchange-policy': typeof ExchangePolicyRoute
   '/new-arrivals': typeof NewArrivalsRoute
   '/payment-policy': typeof PaymentPolicyRoute
@@ -82,6 +90,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/checkout': typeof CheckoutRoute
   '/exchange-policy': typeof ExchangePolicyRoute
   '/new-arrivals': typeof NewArrivalsRoute
   '/payment-policy': typeof PaymentPolicyRoute
@@ -94,6 +103,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/checkout'
     | '/exchange-policy'
     | '/new-arrivals'
     | '/payment-policy'
@@ -104,6 +114,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/checkout'
     | '/exchange-policy'
     | '/new-arrivals'
     | '/payment-policy'
@@ -114,6 +125,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/checkout'
     | '/exchange-policy'
     | '/new-arrivals'
     | '/payment-policy'
@@ -125,6 +137,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CheckoutRoute: typeof CheckoutRoute
   ExchangePolicyRoute: typeof ExchangePolicyRoute
   NewArrivalsRoute: typeof NewArrivalsRoute
   PaymentPolicyRoute: typeof PaymentPolicyRoute
@@ -141,6 +154,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/exchange-policy': {
@@ -197,6 +217,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CheckoutRoute: CheckoutRoute,
   ExchangePolicyRoute: ExchangePolicyRoute,
   NewArrivalsRoute: NewArrivalsRoute,
   PaymentPolicyRoute: PaymentPolicyRoute,

@@ -158,11 +158,13 @@ function ProductDetail() {
             variant={isPreOrder ? "outline" : "default"}
             className={cn(
               "mt-7 w-full rounded-none py-7 text-sm",
-              isPreOrder && "border-accent bg-transparent text-foreground hover:bg-accent/10",
+              isPreOrder &&
+                "border-2 !border-accent !bg-transparent !text-foreground hover:!bg-accent/15",
             )}
           >
             {ctaLabel}
           </Button>
+
 
           <p className="mt-3 text-center text-xs text-muted-foreground">
             Payment is required upfront. We do not accept payment on delivery.

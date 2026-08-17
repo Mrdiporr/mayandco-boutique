@@ -10,7 +10,7 @@ const searchSchema = z.object({
   category: z.enum(["all", "clothing", "accessories"]).catch("all"),
 });
 
-export const Route = createFileRoute("/shop")({
+export const Route = createFileRoute("/shop/")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [

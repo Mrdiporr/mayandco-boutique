@@ -10,13 +10,22 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ExchangePolicyRouteImport } from './routes/exchange-policy'
 import { Route as NewArrivalsRouteImport } from './routes/new-arrivals'
+import { Route as PaymentPolicyRouteImport } from './routes/payment-policy'
 import { Route as PreOrderRouteImport } from './routes/pre-order'
+import { Route as ShippingRouteImport } from './routes/shipping'
 import { Route as ShopIndexRouteImport } from './routes/shop.index'
+import { Route as ShopSlugRouteImport } from './routes/shop.$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExchangePolicyRoute = ExchangePolicyRouteImport.update({
+  id: '/exchange-policy',
+  path: '/exchange-policy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NewArrivalsRoute = NewArrivalsRouteImport.update({
@@ -24,9 +33,19 @@ const NewArrivalsRoute = NewArrivalsRouteImport.update({
   path: '/new-arrivals',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PaymentPolicyRoute = PaymentPolicyRouteImport.update({
+  id: '/payment-policy',
+  path: '/payment-policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PreOrderRoute = PreOrderRouteImport.update({
   id: '/pre-order',
   path: '/pre-order',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShippingRoute = ShippingRouteImport.update({
+  id: '/shipping',
+  path: '/shipping',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ShopIndexRoute = ShopIndexRouteImport.update({
@@ -34,38 +53,84 @@ const ShopIndexRoute = ShopIndexRouteImport.update({
   path: '/shop/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShopSlugRoute = ShopSlugRouteImport.update({
+  id: '/shop/$slug',
+  path: '/shop/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/exchange-policy': typeof ExchangePolicyRoute
   '/new-arrivals': typeof NewArrivalsRoute
+  '/payment-policy': typeof PaymentPolicyRoute
   '/pre-order': typeof PreOrderRoute
+  '/shipping': typeof ShippingRoute
+  '/shop/$slug': typeof ShopSlugRoute
   '/shop/': typeof ShopIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/exchange-policy': typeof ExchangePolicyRoute
   '/new-arrivals': typeof NewArrivalsRoute
+  '/payment-policy': typeof PaymentPolicyRoute
   '/pre-order': typeof PreOrderRoute
+  '/shipping': typeof ShippingRoute
+  '/shop/$slug': typeof ShopSlugRoute
   '/shop': typeof ShopIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/exchange-policy': typeof ExchangePolicyRoute
   '/new-arrivals': typeof NewArrivalsRoute
+  '/payment-policy': typeof PaymentPolicyRoute
   '/pre-order': typeof PreOrderRoute
+  '/shipping': typeof ShippingRoute
+  '/shop/$slug': typeof ShopSlugRoute
   '/shop/': typeof ShopIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/new-arrivals' | '/pre-order' | '/shop/'
+  fullPaths:
+    | '/'
+    | '/exchange-policy'
+    | '/new-arrivals'
+    | '/payment-policy'
+    | '/pre-order'
+    | '/shipping'
+    | '/shop/$slug'
+    | '/shop/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/new-arrivals' | '/pre-order' | '/shop'
-  id: '__root__' | '/' | '/new-arrivals' | '/pre-order' | '/shop/'
+  to:
+    | '/'
+    | '/exchange-policy'
+    | '/new-arrivals'
+    | '/payment-policy'
+    | '/pre-order'
+    | '/shipping'
+    | '/shop/$slug'
+    | '/shop'
+  id:
+    | '__root__'
+    | '/'
+    | '/exchange-policy'
+    | '/new-arrivals'
+    | '/payment-policy'
+    | '/pre-order'
+    | '/shipping'
+    | '/shop/$slug'
+    | '/shop/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ExchangePolicyRoute: typeof ExchangePolicyRoute
   NewArrivalsRoute: typeof NewArrivalsRoute
+  PaymentPolicyRoute: typeof PaymentPolicyRoute
   PreOrderRoute: typeof PreOrderRoute
+  ShippingRoute: typeof ShippingRoute
+  ShopSlugRoute: typeof ShopSlugRoute
   ShopIndexRoute: typeof ShopIndexRoute
 }
 
@@ -78,11 +143,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/exchange-policy': {
+      id: '/exchange-policy'
+      path: '/exchange-policy'
+      fullPath: '/exchange-policy'
+      preLoaderRoute: typeof ExchangePolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/new-arrivals': {
       id: '/new-arrivals'
       path: '/new-arrivals'
       fullPath: '/new-arrivals'
       preLoaderRoute: typeof NewArrivalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/payment-policy': {
+      id: '/payment-policy'
+      path: '/payment-policy'
+      fullPath: '/payment-policy'
+      preLoaderRoute: typeof PaymentPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pre-order': {
@@ -92,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PreOrderRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shipping': {
+      id: '/shipping'
+      path: '/shipping'
+      fullPath: '/shipping'
+      preLoaderRoute: typeof ShippingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/shop/': {
       id: '/shop/'
       path: '/shop'
@@ -99,13 +185,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShopIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shop/$slug': {
+      id: '/shop/$slug'
+      path: '/shop/$slug'
+      fullPath: '/shop/$slug'
+      preLoaderRoute: typeof ShopSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ExchangePolicyRoute: ExchangePolicyRoute,
   NewArrivalsRoute: NewArrivalsRoute,
+  PaymentPolicyRoute: PaymentPolicyRoute,
   PreOrderRoute: PreOrderRoute,
+  ShippingRoute: ShippingRoute,
+  ShopSlugRoute: ShopSlugRoute,
   ShopIndexRoute: ShopIndexRoute,
 }
 export const routeTree = rootRouteImport

@@ -66,7 +66,13 @@ export function Footer() {
                   Pre-Order Hub
                 </Link>
               </li>
+              <li>
+                <Link to="/catalogue" className="transition-opacity hover:opacity-60">
+                  Personal Shopper Catalogue
+                </Link>
+              </li>
             </ul>
+
           </div>
         </div>
 

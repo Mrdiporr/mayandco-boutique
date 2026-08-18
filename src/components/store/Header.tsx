@@ -3,6 +3,8 @@ import { Link } from "@tanstack/react-router";
 import { Menu, ShoppingBag, X } from "lucide-react";
 import { useCart } from "@/context/cart";
 import { cn } from "@/lib/utils";
+import logoAsset from "@/assets/img-2320.asset.json";
+
 
 const linkClass =
   "eyebrow text-foreground/80 transition-colors hover:text-foreground data-[status=active]:text-foreground";
@@ -38,9 +40,10 @@ export function Header() {
           <Menu className="h-5 w-5" />
         </button>
 
-        <Link to="/" className="font-display text-lg tracking-[0.28em] md:text-xl">
-          MAY&nbsp;&&nbsp;CO.
+        <Link to="/" aria-label="MAY & CO. home" className="shrink-0">
+          <img src={logoAsset.url} alt="MAY & CO." className="h-9 w-auto md:h-11" />
         </Link>
+
 
         <nav className="hidden items-center gap-9 md:flex">
           <div
@@ -81,6 +84,10 @@ export function Header() {
           <Link to="/pre-order" className={linkClass}>
             Pre-Order Hub
           </Link>
+          <Link to="/catalogue" className={linkClass}>
+            Catalogue
+          </Link>
+
         </nav>
 
         <button
@@ -105,7 +112,7 @@ export function Header() {
         )}
       >
         <div className="flex h-16 items-center justify-between border-b border-border px-4">
-          <span className="font-display text-lg tracking-[0.28em]">MAY & CO.</span>
+          <img src={logoAsset.url} alt="MAY & CO." className="h-9 w-auto" />
           <button aria-label="Close menu" onClick={() => setMenuOpen(false)}>
             <X className="h-5 w-5" />
           </button>
@@ -115,7 +122,9 @@ export function Header() {
             { to: "/shop" as const, label: "Shop All" },
             { to: "/new-arrivals" as const, label: "New Arrivals" },
             { to: "/pre-order" as const, label: "Pre-Order Hub" },
+            { to: "/catalogue" as const, label: "Catalogue" },
           ].map((item) => (
+
             <Link
               key={item.to}
               to={item.to}

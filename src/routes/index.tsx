@@ -105,9 +105,15 @@ function Index() {
               When a size runs dry, the piece switches to pre-order automatically. Reserve yours
               and we fulfill within 2–3 weeks — tracked from atelier to your door.
             </p>
-            <Button asChild variant="outline" className="mt-8 rounded-none border-accent px-8 py-6">
-              <Link to="/pre-order">Browse the Pre-Order Hub</Link>
-            </Button>
+            <div className="mt-8 flex flex-wrap gap-4">
+              <Button asChild variant="outline" className="rounded-none border-accent px-8 py-6">
+                <Link to="/pre-order">Browse the Pre-Order Hub</Link>
+              </Button>
+              <Button asChild variant="ghost" className="rounded-none px-8 py-6">
+                <Link to="/catalogue">Personal Shopper Catalogue →</Link>
+              </Button>
+            </div>
+
           </div>
           <div className="grid grid-cols-2 gap-4">
             {PRODUCTS.slice(4, 6).map((p) => (

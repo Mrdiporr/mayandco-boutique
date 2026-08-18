@@ -1,7 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Layout, PageHeader } from "@/components/store/Layout";
 import { ProductGrid } from "@/components/store/ProductGrid";
 import { PRODUCTS, SIZES, totalStock } from "@/lib/products";
+import preorderFlyerAsset from "@/assets/img-2310.asset.json";
+
 
 export const Route = createFileRoute("/pre-order")({
   head: () => ({
@@ -51,6 +53,26 @@ function PreOrderHub() {
           ))}
         </div>
 
+        <section className="grid items-center gap-8 border-b border-border py-12 md:grid-cols-2">
+          <img
+            src={preorderFlyerAsset.url}
+            alt="MAY & CO. Summer China pre-order flyer featuring bags, shoes and skincare, order window April 8–30"
+            loading="lazy"
+            className="w-full border border-border"
+          />
+          <div>
+            <p className="eyebrow text-muted-foreground">Batch sourcing</p>
+            <h2 className="mt-3 font-display text-3xl md:text-4xl">Summer China Pre-Order run.</h2>
+            <p className="mt-4 max-w-md text-sm text-muted-foreground">
+              Bags, shoes, skincare and lifestyle pieces sourced on a scheduled batch run. Send your
+              request during the order window and we quote, confirm and ship with the batch.
+            </p>
+            <Link to="/catalogue" className="eyebrow mt-6 inline-block border-b border-foreground pb-1">
+              Browse the request catalogue
+            </Link>
+          </div>
+        </section>
+
         <section className="py-12">
           <h2 className="font-display text-2xl md:text-3xl">Available to pre-order</h2>
           <div className="mt-8">
@@ -60,6 +82,7 @@ function PreOrderHub() {
             />
           </div>
         </section>
+
 
         {partial.length > 0 && (
           <section className="border-t border-border py-12">

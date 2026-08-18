@@ -15,6 +15,8 @@ import { PRODUCTS, SIZES, getProduct, type Size } from "@/lib/products";
 import { naira } from "@/lib/format";
 import { useCart } from "@/context/cart";
 import { cn } from "@/lib/utils";
+import sizeChartAsset from "@/assets/img-2311.asset.json";
+
 
 export const Route = createFileRoute("/shop/$slug")({
   loader: ({ params }) => {
@@ -188,6 +190,17 @@ function ProductDetail() {
                 working days nationwide. Pre-orders fulfill within 2–3 weeks.
               </AccordionContent>
             </AccordionItem>
+            <AccordionItem value="size-guide">
+              <AccordionTrigger className="eyebrow">Size Guide</AccordionTrigger>
+              <AccordionContent>
+                <img
+                  src={sizeChartAsset.url}
+                  alt="MAY & CO. women's size chart with bust, waist and hip measurements in inches for sizes 6 to 24"
+                  loading="lazy"
+                  className="w-full border border-border"
+                />
+              </AccordionContent>
+            </AccordionItem>
             <AccordionItem value="exchange">
               <AccordionTrigger className="eyebrow">Exchange Policy</AccordionTrigger>
               <AccordionContent className="text-sm text-muted-foreground">
@@ -195,6 +208,7 @@ function ProductDetail() {
                 intact. Pre-order and sale pieces are final sale.
               </AccordionContent>
             </AccordionItem>
+
           </Accordion>
         </div>
       </article>

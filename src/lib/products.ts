@@ -1,10 +1,14 @@
-import leopardMeshSet from "@/assets/leopard-mesh-set.jpg";
 import halterPuffDress from "@/assets/halter-puff-dress.jpg";
 import polkaDotDress from "@/assets/polka-dot-dress.jpg";
 import patchworkDenim from "@/assets/patchwork-denim.jpg";
-import curatedCap from "@/assets/curated-cap.jpg";
 import corsetSatinSet from "@/assets/corset-satin-set.jpg";
 import leatherBag from "@/assets/leather-bag.jpg";
+import leopardReal from "@/assets/leopard-real.asset.json";
+import capsAsset from "@/assets/img-2319.asset.json";
+import floralDressAsset from "@/assets/img-2318.asset.json";
+import stripedSetAsset from "@/assets/img-2317.asset.json";
+import clawClipsAsset from "@/assets/img-2313.asset.json";
+import giftBoxAsset from "@/assets/img-2312.asset.json";
 
 export const SIZES = ["S", "M", "L", "XL", "XXL"] as const;
 export type Size = (typeof SIZES)[number];
@@ -26,15 +30,39 @@ export type Product = {
 export const PRODUCTS: Product[] = [
   {
     slug: "leopard-mesh-set",
-    name: "Leopard Mesh Set",
+    name: "Leopard Mesh Capri Top & Pant",
     price: 39000,
     category: "clothing",
-    image: leopardMeshSet,
+    image: leopardReal.url,
     isNew: true,
     editorial:
-      "A second-skin mesh two-piece in a smoked leopard print. Sculpted halter top with a high-rise flared trouser — engineered for evening, styled for the street.",
-    details: ["Sheer stretch mesh", "Two-piece set", "Hand wash cold, line dry"],
+      "A second-skin mesh two-piece in a smoked leopard print with contrast lace trim. Long-sleeve button-through top with matching capri leggings — engineered for evening, styled for the street.",
+    details: ["Sheer stretch mesh", "Two-piece set", "Lace trim detail", "Hand wash cold, line dry"],
     stock: { S: 4, M: 2, L: 0, XL: 3, XXL: 0 },
+  },
+  {
+    slug: "tie-dye-floral-midi-dress",
+    name: "Tie-Dye Floral Ruched Midi Dress",
+    price: 37500,
+    category: "clothing",
+    image: floralDressAsset.url,
+    isNew: true,
+    editorial:
+      "A watercolour floral slip in pastel blue, pink and butter yellow. Ruched bust, sculpted waist panels and a thigh-high back slit — the summer dinner dress.",
+    details: ["Ruched stretch jersey", "Adjustable spaghetti straps", "Back slit", "Midi length"],
+    stock: { S: 3, M: 4, L: 2, XL: 0, XXL: 0 },
+  },
+  {
+    slug: "striped-polo-pleated-trouser-set",
+    name: "Striped Polo & Pleated Trouser Set",
+    price: 46000,
+    category: "clothing",
+    image: stripedSetAsset.url,
+    isNew: true,
+    editorial:
+      "Oversized knit polo in sand, chocolate and burnt orange stripes, paired with high-waist pleated balloon trousers in vivid tangerine. Relaxed volume, resort attitude.",
+    details: ["Knit polo with open collar", "Pleated balloon trousers", "Sold as a two-piece set"],
+    stock: { S: 2, M: 3, L: 3, XL: 1, XXL: 0 },
   },
   {
     slug: "halter-neck-puff-dress",
@@ -74,15 +102,39 @@ export const PRODUCTS: Product[] = [
   },
   {
     slug: "miu-miu-curated-cap",
-    name: "Miu Miu Curated Cap",
+    name: "Miu Miu Curated Baker Boy Cap",
     price: 25000,
     category: "accessories",
-    image: curatedCap,
+    image: capsAsset.url,
     isNew: false,
     editorial:
-      "A curated designer cap sourced for the MAY & CO. accessories edit. Matte black, low crown, pre-curved brim.",
-    details: ["Curated sourced piece", "Adjustable strap", "One size"],
+      "A curated designer baker boy cap sourced for the MAY & CO. accessories edit. Panelled crown, leather-trim brim and gold lettering — available in black, cream, chocolate and camel.",
+    details: ["Curated sourced piece", "Leather-trim brim", "Gold-tone lettering", "One size"],
     stock: { S: 0, M: 0, L: 0, XL: 0, XXL: 0 },
+  },
+  {
+    slug: "matte-claw-clip-trio",
+    name: "Matte Claw Clip Trio",
+    price: 9500,
+    category: "accessories",
+    image: clawClipsAsset.url,
+    isNew: true,
+    editorial:
+      "A set of three oversized matte claw clips in black, espresso and terracotta. Strong-hold hinge, no-slip grip — built for thick hair.",
+    details: ["Set of three", "Matte finish", "Strong-hold hinge"],
+    stock: { S: 6, M: 6, L: 6, XL: 6, XXL: 6 },
+  },
+  {
+    slug: "curated-accessory-gift-box",
+    name: "Curated Accessory Gift Box",
+    price: 18000,
+    category: "accessories",
+    image: giftBoxAsset.url,
+    isNew: true,
+    editorial:
+      "A ready-to-gift window box of scrunchies, pearl sets, stud earrings and clips — curated by tone and packed by hand. Tell us the colour story and we build it.",
+    details: ["Hand-packed window box", "Scrunchies, clips, pearls & studs", "Colour story on request"],
+    stock: { S: 3, M: 0, L: 0, XL: 0, XXL: 0 },
   },
   {
     slug: "sculpted-corset-satin-set",

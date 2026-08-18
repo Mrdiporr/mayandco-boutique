@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Instagram } from "lucide-react";
+import logoAsset from "@/assets/img-2320.asset.json";
 
 export function Footer() {
   return (
@@ -7,7 +8,8 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-10">
         <div className="grid gap-12 md:grid-cols-4">
           <div className="md:col-span-2">
-            <p className="font-display text-xl tracking-[0.28em]">MAY & CO.</p>
+            <img src={logoAsset.url} alt="MAY & CO." className="h-12 w-auto" />
+
             <p className="mt-4 max-w-sm text-sm text-muted-foreground">
               Curated female apparel and accessories. Luxury street silhouettes, sourced and
               styled in Nigeria.

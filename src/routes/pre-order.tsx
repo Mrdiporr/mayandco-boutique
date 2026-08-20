@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Layout, PageHeader } from "@/components/store/Layout";
 import { ProductGrid } from "@/components/store/ProductGrid";
-import { PRODUCTS, SIZES, totalStock } from "@/lib/products";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { SIZES, totalStock } from "@/lib/products";
+import { storefrontQuery } from "@/lib/store-queries";
 import preorderFlyerAsset from "@/assets/img-2310.asset.json";
 
 
 export const Route = createFileRoute("/pre-order")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(storefrontQuery),
   head: () => ({
     meta: [
       { title: "Pre-Order Hub — MAY & CO. Reserve Sold-Out Pieces" },
@@ -25,8 +28,9 @@ export const Route = createFileRoute("/pre-order")({
 });
 
 function PreOrderHub() {
-  const fullyPreOrder = PRODUCTS.filter((p) => totalStock(p) === 0);
-  const partial = PRODUCTS.filter(
+  const { data } = useSuspenseQuery(storefrontQuery);
+  const fullyPreOrder = data.products.filter((p) => totalStock(p) === 0);
+  const partial = data.products.filter(
     (p) => totalStock(p) > 0 && SIZES.some((s) => p.stock[s] === 0),
   );
 

@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Layout, PageHeader } from "@/components/store/Layout";
 import { ProductGrid } from "@/components/store/ProductGrid";
-import { PRODUCTS } from "@/lib/products";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { storefrontQuery } from "@/lib/store-queries";
 
 export const Route = createFileRoute("/new-arrivals")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(storefrontQuery),
   head: () => ({
     meta: [
       { title: "New Arrivals — MAY & CO. Latest Drops" },
@@ -23,7 +25,8 @@ export const Route = createFileRoute("/new-arrivals")({
 });
 
 function NewArrivals() {
-  const products = PRODUCTS.filter((p) => p.isNew);
+  const { data } = useSuspenseQuery(storefrontQuery);
+  const products = data.products.filter((p) => p.isNew);
 
   return (
     <Layout>

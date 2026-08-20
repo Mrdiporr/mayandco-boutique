@@ -3,7 +3,9 @@ import { useState } from "react";
 import { z } from "zod";
 import { Layout, PageHeader } from "@/components/store/Layout";
 import { ProductGrid } from "@/components/store/ProductGrid";
-import { PRODUCTS, SIZES, totalStock, type Size } from "@/lib/products";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { SIZES, totalStock, type Size } from "@/lib/products";
+import { storefrontQuery } from "@/lib/store-queries";
 import { cn } from "@/lib/utils";
 
 const searchSchema = z.object({
@@ -12,6 +14,7 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/shop/")({
   validateSearch: searchSchema,
+  loader: ({ context }) => context.queryClient.ensureQueryData(storefrontQuery),
   head: () => ({
     meta: [
       { title: "Shop All — MAY & CO. Curated Female Apparel" },
@@ -38,7 +41,8 @@ function ShopPage() {
   const [size, setSize] = useState<Size | "all">("all");
   const [availability, setAvailability] = useState<Availability>("all");
 
-  const products = PRODUCTS.filter((p) => {
+  const { data } = useSuspenseQuery(storefrontQuery);
+  const products = data.products.filter((p) => {
     if (category !== "all" && p.category !== category) return false;
     if (size !== "all" && p.stock[size] === 0 && totalStock(p) > 0) return false;
     if (availability === "in-stock" && totalStock(p) === 0) return false;

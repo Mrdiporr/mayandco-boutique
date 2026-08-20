@@ -1,18 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/store/Layout";
 import { ProductGrid } from "@/components/store/ProductGrid";
-import { PRODUCTS } from "@/lib/products";
+import { storefrontQuery } from "@/lib/store-queries";
 import { Button } from "@/components/ui/button";
 import heroImage from "@/assets/hero.jpg";
 
 export const Route = createFileRoute("/")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(storefrontQuery),
   head: () => ({
     meta: [
       { title: "MAY & CO. — Curated Female Apparel | Luxury Street Fashion Nigeria" },
       {
         name: "description",
         content:
-          "Luxury street fashion and contemporary female apparel, curated in Nigeria. Shop new drops, pre-order exclusives and secure card or bank transfer checkout.",
+          "Luxury street fashion and contemporary female apparel, curated in Nigeria. Shop new drops, pre-order exclusives and secure bank transfer or WhatsApp checkout.",
       },
       { property: "og:title", content: "MAY & CO. — Curated Female Apparel" },
       {
@@ -20,20 +22,22 @@ export const Route = createFileRoute("/")({
         content:
           "Luxury street fashion and contemporary female apparel, curated in Nigeria. Explore the new drops.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Index,
 });
 
 function Index() {
-  const featured = PRODUCTS.slice(0, 4);
+  const { data } = useSuspenseQuery(storefrontQuery);
+  const featured = data.products.slice(0, 4);
 
   return (
     <Layout>
       {/* Hero */}
       <section className="relative">
         <div className="relative h-[78vh] min-h-[520px] w-full overflow-hidden bg-muted">
-          {/* Container is video-loop ready: swap the img for a <video> loop when assets land */}
           <img
             src={heroImage}
             alt="MAY & CO. editorial campaign — model in cream tailored streetwear"
@@ -113,10 +117,9 @@ function Index() {
                 <Link to="/catalogue">Personal Shopper Catalogue →</Link>
               </Button>
             </div>
-
           </div>
           <div className="grid grid-cols-2 gap-4">
-            {PRODUCTS.slice(4, 6).map((p) => (
+            {data.products.slice(4, 6).map((p) => (
               <img
                 key={p.slug}
                 src={p.image}

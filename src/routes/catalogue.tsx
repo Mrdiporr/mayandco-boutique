@@ -336,10 +336,17 @@ function RequestForm({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) return toast.error("Please add your name");
-    if (form.phone.replace(/\D/g, "").length < 7) return toast.error("Add a valid phone number");
+    if (!form.name.trim()) {
+      toast.error("Please add your name");
+      return;
+    }
+    if (form.phone.replace(/\D/g, "").length < 7) {
+      toast.error("Add a valid phone number");
+      return;
+    }
     if (selected.length === 0 && !form.message.trim()) {
-      return toast.error("Select a piece or describe what you are looking for");
+      toast.error("Select a piece or describe what you are looking for");
+      return;
     }
     setSending(true);
     try {

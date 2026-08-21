@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Layout } from "@/components/store/Layout";
@@ -11,7 +12,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { PRODUCTS, SIZES, getProduct, type Size } from "@/lib/products";
+import { SIZES, type Size } from "@/lib/products";
+import { storefrontQuery } from "@/lib/store-queries";
 import { naira } from "@/lib/format";
 import { useCart } from "@/context/cart";
 import { cn } from "@/lib/utils";
@@ -19,8 +21,9 @@ import sizeChartAsset from "@/assets/img-2311.asset.json";
 
 
 export const Route = createFileRoute("/shop/$slug")({
-  loader: ({ params }) => {
-    const product = getProduct(params.slug);
+  loader: async ({ context, params }) => {
+    const data = await context.queryClient.ensureQueryData(storefrontQuery);
+    const product = data.products.find((p) => p.slug === params.slug);
     if (!product) throw notFound();
     return { product };
   },
@@ -48,14 +51,17 @@ export const Route = createFileRoute("/shop/$slug")({
 });
 
 function ProductDetail() {
-  const { product } = Route.useLoaderData();
+  const { slug } = Route.useParams();
+  const { data } = useSuspenseQuery(storefrontQuery);
+  const loaded = Route.useLoaderData();
+  const product = data.products.find((p) => p.slug === slug) ?? loaded.product;
   const { addLine } = useCart();
   const [size, setSize] = useState<Size | null>(null);
 
   const selectedStock = size ? product.stock[size] : null;
   const isPreOrder = selectedStock === 0;
 
-  const related = PRODUCTS.filter((p) => p.slug !== product.slug).slice(0, 4);
+  const related = data.products.filter((p) => p.slug !== product.slug).slice(0, 4);
 
   const handleAdd = () => {
     if (!size) {

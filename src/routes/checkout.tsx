@@ -1,38 +1,40 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { Building2, CheckCircle2, CreditCard, Loader2, Lock, ShieldAlert } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Building2, CheckCircle2, Loader2, MessageCircle, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
 import { Layout } from "@/components/store/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useCart, type CartLine } from "@/context/cart";
 import { naira } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { storefrontQuery } from "@/lib/store-queries";
+import { placeOrder } from "@/lib/store.functions";
+import { openWhatsApp } from "@/lib/whatsapp";
 
 export const Route = createFileRoute("/checkout")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(storefrontQuery),
   head: () => ({
     meta: [
       { title: "Secure Checkout — MAY & CO." },
       {
         name: "description",
         content:
-          "Complete your MAY & CO. order with card or instant bank transfer. Strictly pre-paid — no payment on delivery.",
+          "Complete your MAY & CO. order by bank transfer or WhatsApp. Strictly pre-paid — no payment on delivery.",
       },
       { property: "og:title", content: "Secure Checkout — MAY & CO." },
       {
         property: "og:description",
-        content: "Card or instant bank transfer. Strictly pre-paid, no payment on delivery.",
+        content: "Bank transfer or WhatsApp checkout. Strictly pre-paid, no payment on delivery.",
       },
     ],
   }),
   component: CheckoutPage,
 });
 
-const SHIPPING_FEE = 5000;
-
-type Method = "card" | "transfer";
-type Stage = "form" | "method" | "processing" | "done";
+type Channel = "transfer" | "whatsapp";
 
 type Details = {
   name: string;
@@ -45,143 +47,116 @@ type Details = {
 
 const emptyDetails: Details = { name: "", email: "", phone: "", address: "", city: "", state: "" };
 
+type Confirmed = {
+  reference: string;
+  lines: CartLine[];
+  subtotal: number;
+  shipping: number;
+  total: number;
+  channel: Channel;
+};
+
 function CheckoutPage() {
+  const { data: store } = useSuspenseQuery(storefrontQuery);
+  const settings = store.settings;
   const { lines, subtotal, clear } = useCart();
   const [details, setDetails] = useState<Details>(emptyDetails);
   const [errors, setErrors] = useState<Partial<Record<keyof Details, string>>>({});
-  const [stage, setStage] = useState<Stage>("form");
-  const [method, setMethod] = useState<Method>("card");
-  const [seconds, setSeconds] = useState(10);
-  const [order, setOrder] = useState<{ ref: string; lines: CartLine[]; total: number } | null>(
-    null,
-  );
+  const [channel, setChannel] = useState<Channel>("transfer");
+  const [submitting, setSubmitting] = useState(false);
+  const [confirmed, setConfirmed] = useState<Confirmed | null>(null);
 
-  const total = subtotal + (lines.length ? SHIPPING_FEE : 0);
+  const shipping = lines.length ? settings.shippingFee : 0;
+  const total = subtotal + shipping;
   const hasPreOrder = useMemo(() => lines.some((l) => l.preOrder), [lines]);
 
-  useEffect(() => {
-    if (stage !== "processing") return;
-    setSeconds(method === "transfer" ? 10 : 3);
-    const started = Date.now();
-    const duration = method === "transfer" ? 10000 : 3000;
-    const tick = window.setInterval(() => {
-      const left = Math.max(0, Math.ceil((duration - (Date.now() - started)) / 1000));
-      setSeconds(left);
-    }, 250);
-    const done = window.setTimeout(() => {
-      setOrder({
-        ref: `MC-${Date.now().toString().slice(-8)}`,
-        lines,
-        total,
-      });
-      setStage("done");
-      clear();
-    }, duration);
-    return () => {
-      window.clearInterval(tick);
-      window.clearTimeout(done);
-    };
-  }, [stage, method, lines, total, clear]);
+  const set = (key: keyof Details, value: string) => {
+    setDetails((d) => ({ ...d, [key]: value }));
+    setErrors((e) => ({ ...e, [key]: undefined }));
+  };
 
   const validate = () => {
     const next: Partial<Record<keyof Details, string>> = {};
-    if (!details.name.trim()) next.name = "Required";
-    if (!/^\S+@\S+\.\S+$/.test(details.email)) next.email = "Enter a valid email";
-    if (details.phone.replace(/\D/g, "").length < 10) next.phone = "Enter a valid phone number";
-    if (!details.address.trim()) next.address = "Required";
-    if (!details.city.trim()) next.city = "Required";
-    if (!details.state.trim()) next.state = "Required";
+    if (!details.name.trim()) next.name = "Enter your full name";
+    if (details.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(details.email))
+      next.email = "Enter a valid email";
+    if (details.phone.replace(/\D/g, "").length < 7) next.phone = "Enter a valid phone number";
+    if (!details.address.trim()) next.address = "Enter your delivery address";
+    if (!details.city.trim()) next.city = "Enter your city";
+    if (!details.state.trim()) next.state = "Enter your state";
     setErrors(next);
     return Object.keys(next).length === 0;
   };
 
-  const downloadReceipt = () => {
-    if (!order) return;
-    const body = [
-      "MAY & CO. — ORDER RECEIPT",
-      "=================================",
-      `Order reference: ${order.ref}`,
-      `Date: ${new Date().toLocaleString("en-NG")}`,
-      `Customer: ${details.name}`,
-      `Email: ${details.email}`,
+  const orderMessage = (reference: string, orderTotal: number) =>
+    [
+      `MAY & CO. order ${reference}`,
+      `Name: ${details.name}`,
       `Phone: ${details.phone}`,
       `Deliver to: ${details.address}, ${details.city}, ${details.state}`,
-      `Payment method: ${method === "card" ? "Card Payment" : "Instant Bank Transfer"}`,
       "",
-      "ITEMS",
-      ...order.lines.map(
+      ...lines.map(
         (l) =>
-          `${l.quantity} x ${l.name} (Size ${l.size})${l.preOrder ? " [PRE-ORDER 2-3 WEEKS]" : ""} — ${naira(l.price * l.quantity)}`,
+          `• ${l.name} — size ${l.size} × ${l.quantity} — ${naira(l.price * l.quantity)}${
+            l.preOrder ? " (pre-order)" : ""
+          }`,
       ),
       "",
-      `Shipping: ${naira(SHIPPING_FEE)}`,
-      `TOTAL PAID: ${naira(order.total)}`,
+      `Subtotal: ${naira(subtotal)}`,
+      `Shipping: ${naira(shipping)}`,
+      `Total: ${naira(orderTotal)}`,
       "",
-      "Status: PAID IN FULL. No payment on delivery is required or accepted.",
-      "",
-      "Mayandco.ng is an independent retailer. Brand names, logos, and trademarks",
-      "displayed remain the sole property of their respective owners and are utilized",
-      "strictly for product descriptive purposes.",
+      channel === "transfer"
+        ? "I am paying by bank transfer and will send proof of payment here."
+        : "Please continue my order on WhatsApp.",
     ].join("\n");
 
-    const url = URL.createObjectURL(new Blob([body], { type: "text/plain" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `mayandco-receipt-${order.ref}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const submit = async () => {
+    if (!validate()) return;
+    setSubmitting(true);
+    try {
+      const result = await placeOrder({
+        data: {
+          customer: {
+            name: details.name.trim(),
+            email: details.email.trim(),
+            phone: details.phone.trim(),
+            address: details.address.trim(),
+            city: details.city.trim(),
+            state: details.state.trim(),
+          },
+          channel,
+          items: lines.map((l) => ({
+            slug: l.slug,
+            size: l.size,
+            quantity: l.quantity,
+            preOrder: l.preOrder,
+          })),
+        },
+      });
+      const snapshot: Confirmed = {
+        reference: result.reference,
+        lines,
+        subtotal: result.subtotal,
+        shipping: result.shipping,
+        total: result.total,
+        channel,
+      };
+      setConfirmed(snapshot);
+      openWhatsApp(settings.whatsappNumber, orderMessage(result.reference, result.total));
+      clear();
+      toast.success(`Order ${result.reference} sent to the studio`);
+    } catch {
+      toast.error("We could not submit your order. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  if (stage === "done" && order) {
+  if (confirmed) {
     return (
       <Layout>
-        <div className="fade-up mx-auto max-w-2xl px-4 py-20 text-center sm:px-6">
-          <CheckCircle2 className="mx-auto h-12 w-12 text-accent" />
-          <h1 className="mt-6 font-display text-4xl">Order Confirmed & Paid</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Reference {order.ref} · Paid via{" "}
-            {method === "card" ? "card" : "instant bank transfer"}
-          </p>
-
-          <div className="mt-10 border border-border bg-card p-6 text-left">
-            <p className="eyebrow text-muted-foreground">Breakdown</p>
-            <ul className="mt-4 space-y-3">
-              {order.lines.map((l) => (
-                <li key={l.id} className="flex justify-between gap-4 text-sm">
-                  <span>
-                    {l.quantity} × {l.name}{" "}
-                    <span className="text-muted-foreground">(Size {l.size})</span>
-                    {l.preOrder && (
-                      <span className="block text-xs text-accent-foreground/80">
-                        Pre-order — fulfills in 2–3 weeks
-                      </span>
-                    )}
-                  </span>
-                  <span>{naira(l.price * l.quantity)}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-5 space-y-2 border-t border-border pt-4 text-sm">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Shipping</span>
-                <span>{naira(SHIPPING_FEE)}</span>
-              </div>
-              <div className="flex justify-between font-medium">
-                <span>Total paid</span>
-                <span>{naira(order.total)}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <Button onClick={downloadReceipt} className="rounded-none px-8 py-6">
-              Download receipt
-            </Button>
-            <Button asChild variant="outline" className="rounded-none px-8 py-6">
-              <Link to="/shop">Continue shopping</Link>
-            </Button>
-          </div>
-        </div>
+        <OrderConfirmation order={confirmed} settings={settings} details={details} />
       </Layout>
     );
   }
@@ -189,205 +164,317 @@ function CheckoutPage() {
   if (lines.length === 0) {
     return (
       <Layout>
-        <div className="mx-auto max-w-xl px-4 py-24 text-center sm:px-6">
-          <h1 className="font-display text-3xl">Your bag is empty.</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Explore our new arrivals to start an order.
+        <div className="mx-auto max-w-3xl px-4 py-28 text-center sm:px-6">
+          <h1 className="font-display text-4xl">Your bag is empty.</h1>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Explore our new arrivals and start your order.
           </p>
-          <Button asChild className="mt-8 rounded-none px-8 py-6">
-            <Link to="/new-arrivals">Shop new arrivals</Link>
+          <Button asChild className="mt-8 rounded-none px-10 py-6">
+            <Link to="/new-arrivals">Explore New Drops</Link>
           </Button>
         </div>
       </Layout>
     );
   }
 
-  const field = (key: keyof Details, label: string, type = "text", full = false) => (
-    <div className={cn(full && "sm:col-span-2")}>
-      <Label htmlFor={key} className="eyebrow text-muted-foreground">
-        {label}
-      </Label>
-      <Input
-        id={key}
-        type={type}
-        value={details[key]}
-        onChange={(e) => setDetails((d) => ({ ...d, [key]: e.target.value }))}
-        className="mt-2 rounded-none border-border bg-card"
-      />
-      {errors[key] && <p className="mt-1 text-xs text-destructive">{errors[key]}</p>}
-    </div>
-  );
-
   return (
     <Layout>
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-10">
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-10">
         <h1 className="font-display text-4xl md:text-5xl">Checkout</h1>
 
-        <div className="mt-10 grid gap-12 lg:grid-cols-[1.4fr_1fr]">
+        <div className="mt-6 flex items-start gap-3 border border-accent/50 bg-accent/10 p-4">
+          <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-accent-foreground" />
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">
+              Strictly no payment on delivery.
+            </span>{" "}
+            Orders are confirmed only after payment is received. Your details go straight to our
+            studio, and we finish the order with you on WhatsApp.
+          </p>
+        </div>
+
+        <div className="mt-10 grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
           <div>
-            <div className="flex items-start gap-3 border border-accent bg-accent/10 p-4">
-              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-accent-foreground" />
-              <p className="text-xs leading-relaxed">
-                <span className="font-medium">Strictly no payment on delivery.</span> Orders are
-                dispatched only after payment is confirmed by card or instant bank transfer.
-              </p>
-            </div>
+            <section>
+              <h2 className="eyebrow text-muted-foreground">Delivery details</h2>
+              <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                <Field label="Full name" id="name" value={details.name} error={errors.name} onChange={(v) => set("name", v)} />
+                <Field label="Phone (WhatsApp)" id="phone" type="tel" value={details.phone} error={errors.phone} onChange={(v) => set("phone", v)} />
+                <Field label="Email (optional)" id="email" type="email" value={details.email} error={errors.email} onChange={(v) => set("email", v)} />
+                <Field label="City" id="city" value={details.city} error={errors.city} onChange={(v) => set("city", v)} />
+                <Field label="State" id="state" value={details.state} error={errors.state} onChange={(v) => set("state", v)} />
+                <div className="sm:col-span-2">
+                  <Field label="Delivery address" id="address" value={details.address} error={errors.address} onChange={(v) => set("address", v)} />
+                </div>
+              </div>
+            </section>
 
-            <h2 className="mt-10 font-display text-2xl">Delivery details</h2>
-            <div className="mt-5 grid gap-5 sm:grid-cols-2">
-              {field("name", "Full name", "text", true)}
-              {field("email", "Email", "email")}
-              {field("phone", "Phone", "tel")}
-              {field("address", "Delivery address", "text", true)}
-              {field("city", "City")}
-              {field("state", "State")}
-            </div>
+            <section className="mt-12">
+              <h2 className="eyebrow text-muted-foreground">How would you like to finish?</h2>
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <ChannelCard
+                  active={channel === "transfer"}
+                  onClick={() => setChannel("transfer")}
+                  icon={<Building2 className="h-5 w-5" />}
+                  title="Bank transfer"
+                  copy="Get our account details now, transfer, then send proof on WhatsApp."
+                />
+                <ChannelCard
+                  active={channel === "whatsapp"}
+                  onClick={() => setChannel("whatsapp")}
+                  icon={<MessageCircle className="h-5 w-5" />}
+                  title="Continue on WhatsApp"
+                  copy="We send your full order to the studio and a stylist takes it from there."
+                />
+              </div>
 
-            <Button
-              className="mt-8 w-full rounded-none py-7 sm:w-auto sm:px-12"
-              onClick={() => {
-                if (validate()) setStage("method");
-              }}
-            >
-              <Lock className="mr-2 h-4 w-4" /> Continue to payment
-            </Button>
+              {channel === "transfer" && (
+                <div className="mt-6 border border-border bg-muted/40 p-5">
+                  <p className="eyebrow text-muted-foreground">Payment instructions</p>
+                  <dl className="mt-3 grid gap-2 text-sm">
+                    <Row label="Bank" value={settings.bankName || "Shared on WhatsApp"} />
+                    <Row label="Account name" value={settings.accountName || "Shared on WhatsApp"} />
+                    <Row
+                      label="Account number"
+                      value={settings.accountNumber || "Shared on WhatsApp"}
+                    />
+                    <Row label="Amount" value={naira(total)} />
+                  </dl>
+                  {settings.transferInstructions && (
+                    <p className="mt-4 text-sm text-muted-foreground">
+                      {settings.transferInstructions}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <Button
+                onClick={submit}
+                disabled={submitting}
+                className="mt-8 w-full rounded-none py-7 text-sm tracking-[0.18em] uppercase"
+              >
+                {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {channel === "transfer"
+                  ? `Confirm order & send proof on WhatsApp`
+                  : `Send my order to WhatsApp`}
+              </Button>
+            </section>
           </div>
 
-          <aside className="h-fit border border-border bg-card p-6 lg:sticky lg:top-24">
-            <p className="eyebrow text-muted-foreground">Order summary</p>
+          {/* Summary */}
+          <aside className="h-fit border border-border p-6 lg:sticky lg:top-28">
+            <h2 className="eyebrow text-muted-foreground">Order summary</h2>
             <ul className="mt-5 space-y-4">
               {lines.map((l) => (
-                <li key={l.id} className="flex justify-between gap-4 text-sm">
-                  <span>
-                    {l.quantity} × {l.name}
-                    <span className="block text-xs text-muted-foreground">Size {l.size}</span>
+                <li key={l.id} className="flex gap-4">
+                  <img src={l.image} alt={l.name} className="h-20 w-16 object-cover" />
+                  <div className="flex-1 text-sm">
+                    <p className="font-medium">{l.name}</p>
+                    <p className="text-muted-foreground">
+                      Size {l.size} · Qty {l.quantity}
+                    </p>
                     {l.preOrder && (
-                      <span className="block text-xs text-accent-foreground/80">
-                        Pre-order — 2–3 weeks
-                      </span>
+                      <p className="eyebrow mt-1 text-accent-foreground">
+                        Pre-order · 2–3 weeks
+                      </p>
                     )}
-                  </span>
-                  <span>{naira(l.price * l.quantity)}</span>
+                  </div>
+                  <p className="text-sm">{naira(l.price * l.quantity)}</p>
                 </li>
               ))}
             </ul>
-            <div className="mt-6 space-y-2 border-t border-border pt-4 text-sm">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Subtotal</span>
-                <span>{naira(subtotal)}</span>
+            <dl className="mt-6 space-y-2 border-t border-border pt-4 text-sm">
+              <Row label="Subtotal" value={naira(subtotal)} />
+              <Row label="Shipping" value={naira(shipping)} />
+              <div className="flex justify-between border-t border-border pt-3 font-display text-xl">
+                <dt>Total</dt>
+                <dd>{naira(total)}</dd>
               </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Shipping</span>
-                <span>{naira(SHIPPING_FEE)}</span>
-              </div>
-              <div className="flex justify-between pt-2 text-base font-medium">
-                <span>Total</span>
-                <span>{naira(total)}</span>
-              </div>
-            </div>
+            </dl>
             {hasPreOrder && (
               <p className="mt-4 text-xs text-muted-foreground">
-                This order contains pre-order pieces fulfilling in 2–3 weeks. In-stock pieces ship
-                first at no extra cost.
+                This order contains pre-order pieces fulfilled in 2–3 weeks.
               </p>
             )}
           </aside>
         </div>
       </div>
-
-      {/* Payment processing modal */}
-      <Dialog
-        open={stage === "method" || stage === "processing"}
-        onOpenChange={(open) => {
-          if (!open && stage !== "processing") setStage("form");
-        }}
-      >
-        <DialogContent
-          className="rounded-none border-border p-0 sm:max-w-md"
-        >
-          <div className="border-b border-border px-6 py-4">
-            <p className="eyebrow text-muted-foreground">Secure payment</p>
-            <p className="mt-1 text-sm font-medium">{naira(total)} · MAY & CO.</p>
-          </div>
-
-          {stage === "method" ? (
-            <div className="px-6 pb-6">
-              <p className="text-xs text-muted-foreground">
-                Choose how you'd like to pay. Payment on delivery is not available.
-              </p>
-              <div className="mt-4 space-y-3">
-                {(
-                  [
-                    { id: "card", label: "Card Payment", copy: "Visa, Mastercard, Verve", icon: CreditCard },
-                    {
-                      id: "transfer",
-                      label: "Instant Bank Transfer",
-                      copy: "Auto-verified in seconds",
-                      icon: Building2,
-                    },
-                  ] as const
-                ).map((opt) => (
-                  <button
-                    key={opt.id}
-                    onClick={() => setMethod(opt.id)}
-                    className={cn(
-                      "flex w-full items-center gap-3 border p-4 text-left transition-colors",
-                      method === opt.id
-                        ? "border-foreground bg-muted"
-                        : "border-border hover:border-foreground",
-                    )}
-                  >
-                    <opt.icon className="h-4 w-4" />
-                    <span>
-                      <span className="block text-sm font-medium">{opt.label}</span>
-                      <span className="block text-xs text-muted-foreground">{opt.copy}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              {method === "transfer" && (
-                <div className="mt-4 border border-border bg-muted/50 p-4 text-xs">
-                  <p className="eyebrow text-muted-foreground">Transfer to</p>
-                  <p className="mt-2">MAY &amp; CO. RETAIL LTD</p>
-                  <p className="text-muted-foreground">Providus Bank · 9901234567</p>
-                  <p className="mt-2 text-muted-foreground">
-                    We verify your transfer automatically — do not close this window.
-                  </p>
-                </div>
-              )}
-
-              <Button
-                className="mt-5 w-full rounded-none py-6"
-                onClick={() => setStage("processing")}
-              >
-                {method === "card" ? "Pay with card" : "Pay via Bank Transfer"}
-              </Button>
-              <p className="mt-3 text-center text-[11px] text-muted-foreground">
-                Payments processed securely. Simulated gateway for demonstration.
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center px-6 pb-10 pt-6 text-center">
-              <Loader2 className="h-8 w-8 animate-spin text-accent" />
-              <p className="mt-5 font-display text-xl">
-                {method === "transfer" ? "Verifying your transfer" : "Authorising your card"}
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Matching payment reference · {seconds}s remaining
-              </p>
-              <div className="mt-5 h-px w-full bg-border">
-                <div
-                  className="h-px bg-accent transition-all duration-300"
-                  style={{
-                    width: `${100 - (seconds / (method === "transfer" ? 10 : 3)) * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </Layout>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="text-right font-medium">{value}</dd>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  id,
+  value,
+  onChange,
+  error,
+  type = "text",
+}: {
+  label: string;
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  error?: string | undefined;
+  type?: string;
+}) {
+  return (
+    <div>
+      <Label htmlFor={id} className="eyebrow text-muted-foreground">
+        {label}
+      </Label>
+      <Input
+        id={id}
+        type={type}
+        value={value}
+        maxLength={300}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn("mt-2 rounded-none", error && "border-destructive")}
+      />
+      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+function ChannelCard({
+  active,
+  onClick,
+  icon,
+  title,
+  copy,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  title: string;
+  copy: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "border p-5 text-left transition-colors",
+        active ? "border-foreground bg-foreground/[0.03]" : "border-border hover:border-foreground",
+      )}
+    >
+      <span className="flex items-center gap-3">
+        {icon}
+        <span className="font-display text-xl">{title}</span>
+      </span>
+      <span className="mt-2 block text-sm text-muted-foreground">{copy}</span>
+    </button>
+  );
+}
+
+function OrderConfirmation({
+  order,
+  settings,
+  details,
+}: {
+  order: Confirmed;
+  settings: { bankName: string; accountName: string; accountNumber: string; whatsappNumber: string };
+  details: Details;
+}) {
+  const downloadReceipt = () => {
+    const body = [
+      "MAY & CO. — ORDER SUMMARY",
+      `Reference: ${order.reference}`,
+      `Date: ${new Date().toLocaleString()}`,
+      `Customer: ${details.name} · ${details.phone}`,
+      `Deliver to: ${details.address}, ${details.city}, ${details.state}`,
+      "",
+      ...order.lines.map(
+        (l) =>
+          `${l.name} | size ${l.size} | x${l.quantity} | ${naira(l.price * l.quantity)}${
+            l.preOrder ? " | PRE-ORDER" : ""
+          }`,
+      ),
+      "",
+      `Subtotal: ${naira(order.subtotal)}`,
+      `Shipping: ${naira(order.shipping)}`,
+      `Total: ${naira(order.total)}`,
+      "",
+      order.channel === "transfer"
+        ? `Pay by transfer to ${settings.bankName} · ${settings.accountName} · ${settings.accountNumber}`
+        : "A stylist will confirm your order on WhatsApp.",
+      "Strictly no payment on delivery.",
+    ].join("\n");
+    const url = URL.createObjectURL(new Blob([body], { type: "text/plain" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mayandco-${order.reference}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-20 sm:px-6">
+      <CheckCircle2 className="h-12 w-12 text-accent-foreground" />
+      <h1 className="mt-6 font-display text-4xl">Order received</h1>
+      <p className="mt-3 text-sm text-muted-foreground">
+        Reference <span className="font-medium text-foreground">{order.reference}</span>. Your
+        order is in our studio dashboard.{" "}
+        {order.channel === "transfer"
+          ? "Complete your transfer and send proof on WhatsApp to confirm."
+          : "A stylist will continue with you on WhatsApp."}
+      </p>
+
+      {order.channel === "transfer" && (
+        <div className="mt-8 border border-border bg-muted/40 p-5 text-sm">
+          <p className="eyebrow text-muted-foreground">Transfer to</p>
+          <p className="mt-3">{settings.bankName || "Bank details shared on WhatsApp"}</p>
+          <p>{settings.accountName}</p>
+          <p className="font-display text-2xl">{settings.accountNumber}</p>
+          <p className="mt-3">Amount: {naira(order.total)}</p>
+        </div>
+      )}
+
+      <ul className="mt-8 space-y-3 border-t border-border pt-6 text-sm">
+        {order.lines.map((l) => (
+          <li key={l.id} className="flex justify-between gap-4">
+            <span>
+              {l.name} · {l.size} × {l.quantity}
+              {l.preOrder ? " · pre-order" : ""}
+            </span>
+            <span>{naira(l.price * l.quantity)}</span>
+          </li>
+        ))}
+        <li className="flex justify-between border-t border-border pt-3 font-display text-xl">
+          <span>Total</span>
+          <span>{naira(order.total)}</span>
+        </li>
+      </ul>
+
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <Button
+          className="rounded-none py-6 sm:flex-1"
+          onClick={() =>
+            openWhatsApp(
+              settings.whatsappNumber,
+              `Hello MAY & CO., this is about order ${order.reference}.`,
+            )
+          }
+        >
+          Open WhatsApp
+        </Button>
+        <Button variant="outline" className="rounded-none py-6 sm:flex-1" onClick={downloadReceipt}>
+          Download breakdown
+        </Button>
+      </div>
+      <Link to="/shop" className="eyebrow mt-8 inline-block border-b border-foreground pb-1">
+        Continue shopping
+      </Link>
+    </div>
   );
 }

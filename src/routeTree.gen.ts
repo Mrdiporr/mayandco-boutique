@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CatalogueRouteImport } from './routes/catalogue'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as ExchangePolicyRouteImport } from './routes/exchange-policy'
@@ -17,6 +19,7 @@ import { Route as NewArrivalsRouteImport } from './routes/new-arrivals'
 import { Route as PaymentPolicyRouteImport } from './routes/payment-policy'
 import { Route as PreOrderRouteImport } from './routes/pre-order'
 import { Route as ShippingRouteImport } from './routes/shipping'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as ShopIndexRouteImport } from './routes/shop.index'
 import { Route as ShopSlugRouteImport } from './routes/shop.$slug'
 import { Route as ApiPublicMediaSplatRouteImport } from './routes/api/public/media.$'
@@ -24,6 +27,15 @@ import { Route as ApiPublicMediaSplatRouteImport } from './routes/api/public/med
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CatalogueRoute = CatalogueRouteImport.update({
@@ -61,6 +73,11 @@ const ShippingRoute = ShippingRouteImport.update({
   path: '/shipping',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ShopIndexRoute = ShopIndexRouteImport.update({
   id: '/shop/',
   path: '/shop/',
@@ -79,6 +96,7 @@ const ApiPublicMediaSplatRoute = ApiPublicMediaSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/catalogue': typeof CatalogueRoute
   '/checkout': typeof CheckoutRoute
   '/exchange-policy': typeof ExchangePolicyRoute
@@ -86,12 +104,14 @@ export interface FileRoutesByFullPath {
   '/payment-policy': typeof PaymentPolicyRoute
   '/pre-order': typeof PreOrderRoute
   '/shipping': typeof ShippingRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/shop/$slug': typeof ShopSlugRoute
   '/shop/': typeof ShopIndexRoute
   '/api/public/media/$': typeof ApiPublicMediaSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/catalogue': typeof CatalogueRoute
   '/checkout': typeof CheckoutRoute
   '/exchange-policy': typeof ExchangePolicyRoute
@@ -99,6 +119,7 @@ export interface FileRoutesByTo {
   '/payment-policy': typeof PaymentPolicyRoute
   '/pre-order': typeof PreOrderRoute
   '/shipping': typeof ShippingRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/shop/$slug': typeof ShopSlugRoute
   '/shop': typeof ShopIndexRoute
   '/api/public/media/$': typeof ApiPublicMediaSplatRoute
@@ -106,6 +127,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
   '/catalogue': typeof CatalogueRoute
   '/checkout': typeof CheckoutRoute
   '/exchange-policy': typeof ExchangePolicyRoute
@@ -113,6 +136,7 @@ export interface FileRoutesById {
   '/payment-policy': typeof PaymentPolicyRoute
   '/pre-order': typeof PreOrderRoute
   '/shipping': typeof ShippingRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/shop/$slug': typeof ShopSlugRoute
   '/shop/': typeof ShopIndexRoute
   '/api/public/media/$': typeof ApiPublicMediaSplatRoute
@@ -121,6 +145,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/catalogue'
     | '/checkout'
     | '/exchange-policy'
@@ -128,12 +153,14 @@ export interface FileRouteTypes {
     | '/payment-policy'
     | '/pre-order'
     | '/shipping'
+    | '/admin'
     | '/shop/$slug'
     | '/shop/'
     | '/api/public/media/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/catalogue'
     | '/checkout'
     | '/exchange-policy'
@@ -141,12 +168,15 @@ export interface FileRouteTypes {
     | '/payment-policy'
     | '/pre-order'
     | '/shipping'
+    | '/admin'
     | '/shop/$slug'
     | '/shop'
     | '/api/public/media/$'
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
+    | '/auth'
     | '/catalogue'
     | '/checkout'
     | '/exchange-policy'
@@ -154,6 +184,7 @@ export interface FileRouteTypes {
     | '/payment-policy'
     | '/pre-order'
     | '/shipping'
+    | '/_authenticated/admin'
     | '/shop/$slug'
     | '/shop/'
     | '/api/public/media/$'
@@ -161,6 +192,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
   CatalogueRoute: typeof CatalogueRoute
   CheckoutRoute: typeof CheckoutRoute
   ExchangePolicyRoute: typeof ExchangePolicyRoute
@@ -180,6 +213,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/catalogue': {
@@ -231,6 +278,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShippingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/shop/': {
       id: '/shop/'
       path: '/shop'
@@ -255,8 +309,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
   CatalogueRoute: CatalogueRoute,
   CheckoutRoute: CheckoutRoute,
   ExchangePolicyRoute: ExchangePolicyRoute,

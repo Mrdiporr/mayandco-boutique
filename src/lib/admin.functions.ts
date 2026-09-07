@@ -56,22 +56,24 @@ const settingsInput = z.object({
   instagramHandle: z.string().trim().max(80).default(""),
 });
 
+async function isAdmin(context: { supabase: any; userId: string }) {
+  const { data, error } = await context.supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", context.userId)
+    .eq("role", "admin")
+    .maybeSingle();
+  return !error && Boolean(data);
+}
+
 async function assertAdmin(context: { supabase: any; userId: string }) {
-  const { data, error } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
-  });
-  if (error || !data) throw new Error("Forbidden: admin access required");
+  if (!(await isAdmin(context))) throw new Error("Forbidden: admin access required");
 }
 
 export const getAdminMe = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
-    return { userId: context.userId, isAdmin: Boolean(data) };
+    return { userId: context.userId, isAdmin: await isAdmin(context) };
   });
 
 export const getAdminData = createServerFn({ method: "GET" })

@@ -485,7 +485,7 @@ function ProductForm({
           editorial: form.editorial.trim(),
           details: form.details
             .split("\n")
-            .map((d) => d.trim())
+            .map((d: string) => d.trim())
             .filter(Boolean),
           isNew: form.isNew,
           active: form.active,

@@ -120,7 +120,9 @@ export const placeOrder = createServerFn({ method: "POST" })
       .single();
     if (error || !order) throw new Error("Could not save the order. Please try again.");
 
-    await sb.from("order_items").insert(priced.map((l) => ({ ...l, order_id: order.id })));
+    await supabaseAdmin
+      .from("order_items")
+      .insert(priced.map((l) => ({ ...l, order_id: order.id })));
 
     return { reference: order.reference, subtotal, shipping, total: subtotal + shipping };
   });

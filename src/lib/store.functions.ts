@@ -95,7 +95,11 @@ export const placeOrder = createServerFn({ method: "POST" })
     const shipping = settings?.shipping_fee ?? 5000;
     const reference = `MC-${Date.now().toString(36).toUpperCase()}`;
 
-    const { data: order, error } = await sb
+    // Orders are written with the service role: prices/totals are computed here,
+    // and no public API caller can insert or tamper with order rows.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: order, error } = await supabaseAdmin
       .from("orders")
       .insert({
         reference,
@@ -116,7 +120,9 @@ export const placeOrder = createServerFn({ method: "POST" })
       .single();
     if (error || !order) throw new Error("Could not save the order. Please try again.");
 
-    await sb.from("order_items").insert(priced.map((l) => ({ ...l, order_id: order.id })));
+    await supabaseAdmin
+      .from("order_items")
+      .insert(priced.map((l) => ({ ...l, order_id: order.id })));
 
     return { reference: order.reference, subtotal, shipping, total: subtotal + shipping };
   });

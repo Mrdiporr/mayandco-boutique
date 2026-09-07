@@ -95,7 +95,11 @@ export const placeOrder = createServerFn({ method: "POST" })
     const shipping = settings?.shipping_fee ?? 5000;
     const reference = `MC-${Date.now().toString(36).toUpperCase()}`;
 
-    const { data: order, error } = await sb
+    // Orders are written with the service role: prices/totals are computed here,
+    // and no public API caller can insert or tamper with order rows.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: order, error } = await supabaseAdmin
       .from("orders")
       .insert({
         reference,

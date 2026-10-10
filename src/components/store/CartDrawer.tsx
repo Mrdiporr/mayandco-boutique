@@ -5,8 +5,14 @@ import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/cart";
 import { naira } from "@/lib/format";
 import { ProductImage } from "./ProductImage";
+import { useQuery } from "@tanstack/react-query";
+import { storefrontQuery } from "@/lib/store-queries";
+import type { Size } from "@/lib/products";
 
 export function CartDrawer() {
+  const { data } = useQuery(storefrontQuery);
+  const stockFor = (slug: string, size: string) =>
+    data?.products.find((p) => p.slug === slug)?.stock[size as Size];
   const { lines, isOpen, setOpen, updateQuantity, removeLine, subtotal, count } = useCart();
 
   return (
@@ -52,6 +58,19 @@ export function CartDrawer() {
                         </button>
                       </div>
 
+                      {!line.preOrder &&
+                        (() => {
+                          const left = stockFor(line.slug, line.size);
+                          if (left === undefined || left <= 0 || left > 2) return null;
+                          return (
+                            <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground">
+                              <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                              {left >= line.quantity
+                                ? `Only ${left} left in size ${line.size} — check out soon`
+                                : `Only ${left} left in size ${line.size} — reduce quantity or pre-order the rest`}
+                            </p>
+                          );
+                        })()}
                       {line.preOrder && (
                         <p className="mt-1 text-[11px] text-accent-foreground/80">
                           Pre-order — fulfills in 2–3 weeks

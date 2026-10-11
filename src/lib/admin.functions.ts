@@ -56,6 +56,36 @@ const settingsInput = z.object({
   instagramHandle: z.string().trim().max(80).default(""),
 });
 
+const imageFormats = [
+  {
+    type: "image/jpeg",
+    extension: "jpg",
+    matches: (bytes: Uint8Array) => bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff,
+  },
+  {
+    type: "image/png",
+    extension: "png",
+    matches: (bytes: Uint8Array) =>
+      bytes.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((byte, index) => bytes[index] === byte),
+  },
+  {
+    type: "image/webp",
+    extension: "webp",
+    matches: (bytes: Uint8Array) =>
+      bytes.length >= 12 &&
+      String.fromCharCode(...bytes.subarray(0, 4)) === "RIFF" &&
+      String.fromCharCode(...bytes.subarray(8, 12)) === "WEBP",
+  },
+  {
+    type: "image/gif",
+    extension: "gif",
+    matches: (bytes: Uint8Array) => {
+      const signature = String.fromCharCode(...bytes.subarray(0, 6));
+      return bytes.length >= 6 && (signature === "GIF87a" || signature === "GIF89a");
+    },
+  },
+] as const;
+
 async function isAdmin(context: { supabase: any; userId: string }) {
   const { data, error } = await context.supabase
     .from("user_roles")
@@ -304,20 +334,33 @@ export const uploadStoreImage = createServerFn({ method: "POST" })
     z
       .object({
         filename: z.string().trim().min(1).max(160),
-        contentType: z.string().trim().max(100),
+        contentType: z.string().trim().max(100).optional(),
         base64: z.string().min(1).max(12_000_000),
       })
       .parse(data),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const safeName = data.filename.replace(/[^a-zA-Z0-9._-]/g, "-").slice(-80);
-    const path = `${Date.now()}-${safeName}`;
-    const bytes = Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0));
+    let decoded: string;
+    try {
+      decoded = atob(data.base64);
+    } catch {
+      throw new Error("Upload must be a valid image file");
+    }
+    const bytes = Uint8Array.from(decoded, (c) => c.charCodeAt(0));
+    if (!bytes.length || bytes.length > 6_000_000) {
+      throw new Error("Image must be under 6MB");
+    }
+    const format = imageFormats.find((candidate) => candidate.matches(bytes));
+    if (!format || (data.contentType && data.contentType !== format.type)) {
+      throw new Error("Upload must be a valid JPEG, PNG, WebP, or GIF image");
+    }
+    const safeName = data.filename.replace(/[^a-zA-Z0-9._-]/g, "-").slice(-80).replace(/\.[^.]*$/, "");
+    const path = `${Date.now()}-${safeName}.${format.extension}`;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.storage
       .from("store-images")
-      .upload(path, bytes, { contentType: data.contentType || "image/jpeg", upsert: false });
+      .upload(path, bytes, { contentType: format.type, upsert: false });
     if (error) throw new Error(error.message);
     return { url: `/api/public/media/${path}` };
   });

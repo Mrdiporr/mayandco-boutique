@@ -159,6 +159,18 @@ function ProductDetail() {
                   ? "This size is currently sold out — reserve it now and we fulfill within 2–3 weeks."
                   : `${selectedStock} left in size ${size} — dispatched next business day.`}
             </p>
+            {size !== null && selectedStock !== null && selectedStock > 0 && selectedStock <= 2 && (
+              <div
+                role="status"
+                className="mt-3 flex items-start gap-2 border border-accent bg-accent/10 px-3 py-2.5 text-xs text-foreground"
+              >
+                <span className="mt-1 h-2 w-2 shrink-0 animate-pulse rounded-full bg-accent" />
+                <span>
+                  <strong className="font-medium">Only {selectedStock} left in size {size}</strong> — order
+                  now for next-day dispatch before it shifts to pre-order.
+                </span>
+              </div>
+            )}
           </div>
 
           <Button

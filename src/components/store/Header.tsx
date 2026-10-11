@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
-import { Menu, ShoppingBag, X } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Menu, Search, ShoppingBag, X } from "lucide-react";
 import { useCart } from "@/context/cart";
 import { cn } from "@/lib/utils";
 import logoAsset from "@/assets/img-2320.asset.json";
@@ -14,6 +14,17 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [term, setTerm] = useState("");
+  const navigate = useNavigate();
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = term.trim();
+    setSearchOpen(false);
+    setMenuOpen(false);
+    navigate({ to: "/shop", search: { category: "all", q: q || undefined } });
+    setTerm("");
+  };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -90,6 +101,14 @@ export function Header() {
 
         </nav>
 
+        <div className="flex items-center gap-5">
+        <button
+          aria-label={searchOpen ? "Close search" : "Search the store"}
+          aria-expanded={searchOpen}
+          onClick={() => setSearchOpen((v) => !v)}
+        >
+          {searchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
+        </button>
         <button
           onClick={() => setOpen(true)}
           aria-label={`Open bag, ${count} items`}
@@ -102,7 +121,32 @@ export function Header() {
             </span>
           )}
         </button>
+        </div>
       </div>
+
+      {searchOpen && (
+        <form
+          onSubmit={submitSearch}
+          className="border-t border-border bg-background animate-in fade-in slide-in-from-top-1"
+        >
+          <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6 lg:px-10">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <input
+              autoFocus
+              type="search"
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              onKeyDown={(e) => e.key === "Escape" && setSearchOpen(false)}
+              placeholder="Search dresses, sets, caps…"
+              aria-label="Search the store"
+              className="h-10 flex-1 bg-transparent text-sm outline-none"
+            />
+            <button type="submit" className="eyebrow border border-foreground px-4 py-2 hover:bg-foreground hover:text-background">
+              Search
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* Mobile menu */}
       <div
@@ -118,6 +162,17 @@ export function Header() {
           </button>
         </div>
         <nav className="flex flex-col px-6 py-8">
+          <form onSubmit={submitSearch} className="mb-4 flex items-center gap-2 border border-border px-3">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <input
+              type="search"
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              placeholder="Search the store"
+              aria-label="Search the store"
+              className="h-12 flex-1 bg-transparent text-sm outline-none"
+            />
+          </form>
           {[
             { to: "/shop" as const, label: "Shop All" },
             { to: "/new-arrivals" as const, label: "New Arrivals" },

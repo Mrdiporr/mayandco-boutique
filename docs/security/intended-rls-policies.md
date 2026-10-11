@@ -1,6 +1,6 @@
 # Intended public RLS policies
 
-The security scanner flagged five permissive (`USING true` / `WITH CHECK true`) policies. Each was reviewed with the store owner and confirmed intentional. Regression test: `bun test tests/rls.test.ts` (runs `tests/rls/intended-policies.sql` in a rolled-back transaction).
+The security scanner flagged five permissive (`USING true` / `WITH CHECK true`) policies. Each was reviewed with the store owner and confirmed intentional. Regression test: `bun test ./tests/rls.test.ts` (calls the API as an anonymous visitor; a probe shopper request is deleted afterwards).
 
 | # | Table | Policy | Access | Why it is intended |
 |---|-------|--------|--------|--------------------|

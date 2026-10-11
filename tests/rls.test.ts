@@ -1,4 +1,4 @@
-import { test, expect, afterAll } from "bun:test";
+import { test, expect } from "bun:test";
 import { readFileSync } from "node:fs";
 
 // Regression tests for the five intended public RLS policies.
@@ -22,10 +22,7 @@ const rest = (path: string, init: RequestInit = {}) =>
 
 const MARKER = `[rls-test] ${Date.now()}`;
 
-afterAll(() => {
-  // Remove the probe shopper request (needs PG* env; anon cannot delete by design).
-  Bun.spawnSync(["psql", "-X", "-q", "-c", `delete from public.shopper_requests where name = '${MARKER}'`]);
-});
+// Note: anon cannot delete, so each run leaves one "[rls-test]" request visible in /admin > Requests.
 
 test.each(["product_variants", "categories", "store_settings", "product_images"])(
   "anon can read %s",

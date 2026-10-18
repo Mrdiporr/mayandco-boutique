@@ -54,6 +54,7 @@ const settingsInput = z.object({
   shippingFee: z.number().int().min(0).max(10_000_000),
   transferInstructions: z.string().trim().max(1000).default(""),
   instagramHandle: z.string().trim().max(80).default(""),
+  enableManualTransfer: z.boolean().default(true),
 });
 
 const imageFormats = [
@@ -276,20 +277,38 @@ export const updateOrder = createServerFn({ method: "POST" })
           "pending_payment",
           "awaiting_whatsapp",
           "paid",
+          "processing",
+          "shipped",
+          "delivered",
           "fulfilled",
           "cancelled",
         ]),
         adminNotes: z.string().trim().max(1000).default(""),
+        trackingNote: z.string().trim().max(500).default(""),
       })
       .parse(data),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    const { data: before } = await context.supabase
+      .from("orders")
+      .select("status, tracking_note")
+      .eq("id", data.id)
+      .maybeSingle();
     const { error } = await context.supabase
       .from("orders")
-      .update({ status: data.status, admin_notes: data.adminNotes })
+      .update({ status: data.status, admin_notes: data.adminNotes, tracking_note: data.trackingNote })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    if (before && (before.status !== data.status || before.tracking_note !== data.trackingNote)) {
+      // Event log is server-written only (no client insert grants).
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.from("order_status_events").insert({
+        order_id: data.id,
+        status: data.status,
+        note: before.status !== data.status ? data.trackingNote : `Update: ${data.trackingNote}`,
+      });
+    }
     return { ok: true };
   });
 
@@ -323,6 +342,7 @@ export const saveSettings = createServerFn({ method: "POST" })
       shipping_fee: data.shippingFee,
       transfer_instructions: data.transferInstructions,
       instagram_handle: data.instagramHandle,
+      enable_manual_transfer: data.enableManualTransfer,
     }).eq("id", true);
     if (error) throw new Error(error.message);
     return { ok: true };

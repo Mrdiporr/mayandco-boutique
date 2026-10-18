@@ -260,7 +260,9 @@ const ORDER_STATUSES = [
   "pending_payment",
   "awaiting_whatsapp",
   "paid",
-  "fulfilled",
+  "processing",
+  "shipped",
+  "delivered",
   "cancelled",
 ] as const;
 
@@ -281,7 +283,8 @@ function OrdersPanel({ data, onSaved }: { data: AdminData; onSaved: () => void }
                   {order.customer_name} · {order.phone} · {order.city}, {order.state}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {new Date(order.created_at).toLocaleString()} · {order.channel}
+                  {new Date(order.created_at).toLocaleString()} · {order.channel} · {order.status.replace(/_/g, " ")}
+                  {order.paid_at ? ` · paid ${new Date(order.paid_at).toLocaleString()}` : ""}
                 </p>
               </div>
               <div className="text-right">
@@ -313,12 +316,13 @@ function OrdersPanel({ data, onSaved }: { data: AdminData; onSaved: () => void }
 function OrderControls({ order, onSaved }: { order: any; onSaved: () => void }) {
   const [status, setStatus] = useState<string>(order.status);
   const [notes, setNotes] = useState<string>(order.admin_notes ?? "");
+  const [tracking, setTracking] = useState<string>(order.tracking_note ?? "");
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
     setBusy(true);
     try {
-      await updateOrder({ data: { id: order.id, status: status as any, adminNotes: notes } });
+      await updateOrder({ data: { id: order.id, status: status as any, adminNotes: notes, trackingNote: tracking } });
       toast.success("Order updated");
       onSaved();
     } catch {
@@ -348,6 +352,13 @@ function OrderControls({ order, onSaved }: { order: any; onSaved: () => void }) 
         placeholder="Internal notes"
         onChange={(e) => setNotes(e.target.value)}
         className="rounded-none"
+      />
+      <Input
+        value={tracking}
+        maxLength={500}
+        placeholder="Customer-visible note (courier, tracking no.)"
+        onChange={(e) => setTracking(e.target.value)}
+        className="rounded-none sm:col-span-2"
       />
       <div className="flex gap-2">
         <Button onClick={save} disabled={busy} className="rounded-none">
@@ -1000,6 +1011,7 @@ function SettingsPanel({ data, onSaved }: { data: AdminData; onSaved: () => void
     shippingFee: s.shipping_fee ?? 5000,
     transferInstructions: s.transfer_instructions ?? "",
     instagramHandle: s.instagram_handle ?? "",
+    enableManualTransfer: s.enable_manual_transfer ?? true,
   });
   const [busy, setBusy] = useState(false);
 
@@ -1015,6 +1027,7 @@ function SettingsPanel({ data, onSaved }: { data: AdminData; onSaved: () => void
           shippingFee: Number(form.shippingFee) || 0,
           transferInstructions: form.transferInstructions.trim(),
           instagramHandle: form.instagramHandle.trim(),
+          enableManualTransfer: form.enableManualTransfer,
         },
       });
       toast.success("Settings saved");
@@ -1060,6 +1073,14 @@ function SettingsPanel({ data, onSaved }: { data: AdminData; onSaved: () => void
           />
         </div>
       </div>
+      <label className="mt-6 flex items-center gap-3 text-sm">
+        <input
+          type="checkbox"
+          checked={form.enableManualTransfer}
+          onChange={(e) => setForm({ ...form, enableManualTransfer: e.target.checked })}
+        />
+        Offer manual bank transfer at checkout (backup to Paystack)
+      </label>
       <Button onClick={save} disabled={busy} className="mt-6 rounded-none">
         {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save settings
       </Button>

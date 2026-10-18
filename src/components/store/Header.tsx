@@ -98,6 +98,9 @@ export function Header() {
           <Link to="/catalogue" className={linkClass}>
             Catalogue
           </Link>
+          <Link to="/track" className={linkClass}>
+            Track Order
+          </Link>
 
         </nav>
 

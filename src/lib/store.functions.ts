@@ -28,6 +28,7 @@ export const getStorefront = createServerFn({ method: "GET" }).handler(async () 
     shippingFee: s?.shipping_fee ?? 5000,
     transferInstructions: s?.transfer_instructions ?? "",
     instagramHandle: s?.instagram_handle ?? "mayandco.ng",
+    enableManualTransfer: s?.enable_manual_transfer ?? true,
   };
   return { products, categories, settings };
 });

@@ -41,6 +41,11 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link to="/track" className="transition-opacity hover:opacity-60">
+                  Track Your Order
+                </Link>
+              </li>
+              <li>
                 <Link to="/payment-policy" className="transition-opacity hover:opacity-60">
                   No Payment on Delivery
                 </Link>

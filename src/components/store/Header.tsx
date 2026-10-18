@@ -181,6 +181,7 @@ export function Header() {
             { to: "/new-arrivals" as const, label: "New Arrivals" },
             { to: "/pre-order" as const, label: "Pre-Order Hub" },
             { to: "/catalogue" as const, label: "Catalogue" },
+            { to: "/track" as const, label: "Track Order" },
           ].map((item) => (
 
             <Link

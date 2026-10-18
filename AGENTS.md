@@ -11,3 +11,5 @@
 
 ## Rules
 - Lovable hosting (nitro default target) stays the default build; Vercel is opt-in via `build:vercel` / `VERCEL` env switching the nitro preset in vite.config.ts — keeps the Lovable preview and live site unaffected.
+- Order payment status may only become paid via a Paystack verify call (webhook or return page) that matches the server-computed total — never from client input.
+- Order status/event writes and public order lookups go through server functions with the service role; `order_status_events` and `order_lookup_attempts` have no client write grants.

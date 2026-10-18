@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Building2, CheckCircle2, Loader2, MessageCircle, ShieldAlert } from "lucide-react";
+import { Building2, CheckCircle2, CreditCard, Loader2, MessageCircle, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Layout } from "@/components/store/Layout";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { useCart, type CartLine } from "@/context/cart";
 import { naira } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { storefrontQuery } from "@/lib/store-queries";
-import { placeOrder } from "@/lib/store.functions";
+import { placeOrder, startPaystackPayment } from "@/lib/store.functions";
 import { openWhatsApp } from "@/lib/whatsapp";
 
 export const Route = createFileRoute("/checkout")({
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/checkout")({
   component: CheckoutPage,
 });
 
-type Channel = "transfer" | "whatsapp";
+type Channel = "paystack" | "transfer" | "whatsapp";
 
 type Details = {
   name: string;
@@ -62,7 +62,7 @@ function CheckoutPage() {
   const { lines, subtotal, clear } = useCart();
   const [details, setDetails] = useState<Details>(emptyDetails);
   const [errors, setErrors] = useState<Partial<Record<keyof Details, string>>>({});
-  const [channel, setChannel] = useState<Channel>("transfer");
+  const [channel, setChannel] = useState<Channel>("paystack");
   const [submitting, setSubmitting] = useState(false);
   const [confirmed, setConfirmed] = useState<Confirmed | null>(null);
 
@@ -114,6 +114,27 @@ function CheckoutPage() {
   const submit = async () => {
     if (!validate()) return;
     setSubmitting(true);
+    const payload = {
+      customer: {
+        name: details.name.trim(),
+        email: details.email.trim(),
+        phone: details.phone.trim(),
+        address: details.address.trim(),
+        city: details.city.trim(),
+        state: details.state.trim(),
+      },
+      items: lines.map((l) => ({ slug: l.slug, size: l.size, quantity: l.quantity, preOrder: l.preOrder })),
+    };
+    if (channel === "paystack") {
+      try {
+        const { url } = await startPaystackPayment({ data: { ...payload, channel: "paystack" } });
+        window.location.href = url;
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Could not start payment. Please try again.");
+        setSubmitting(false);
+      }
+      return;
+    }
     try {
       const result = await placeOrder({
         data: {
@@ -213,12 +234,21 @@ function CheckoutPage() {
               <h2 className="eyebrow text-muted-foreground">How would you like to finish?</h2>
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <ChannelCard
+                  active={channel === "paystack"}
+                  onClick={() => setChannel("paystack")}
+                  icon={<CreditCard className="h-5 w-5" />}
+                  title="Pay now"
+                  copy="Card, bank transfer or USSD via Paystack. Confirmed instantly — no follow-up needed."
+                />
+                {settings.enableManualTransfer && (
+                <ChannelCard
                   active={channel === "transfer"}
                   onClick={() => setChannel("transfer")}
                   icon={<Building2 className="h-5 w-5" />}
                   title="Bank transfer"
                   copy="Get our account details now, transfer, then send proof on WhatsApp."
                 />
+                )}
                 <ChannelCard
                   active={channel === "whatsapp"}
                   onClick={() => setChannel("whatsapp")}
@@ -254,7 +284,9 @@ function CheckoutPage() {
                 className="mt-8 w-full rounded-none py-7 text-sm tracking-[0.18em] uppercase"
               >
                 {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {channel === "transfer"
+                {channel === "paystack"
+                  ? `Pay ${naira(total)} securely`
+                  : channel === "transfer"
                   ? `Confirm order & send proof on WhatsApp`
                   : `Send my order to WhatsApp`}
               </Button>
@@ -408,6 +440,7 @@ function OrderConfirmation({
       order.channel === "transfer"
         ? `Pay by transfer to ${settings.bankName} · ${settings.accountName} · ${settings.accountNumber}`
         : "A stylist will confirm your order on WhatsApp.",
+      `Track: ${window.location.origin}/track?ref=${order.reference}`,
       "Strictly no payment on delivery.",
     ].join("\n");
     const url = URL.createObjectURL(new Blob([body], { type: "text/plain" }));
@@ -472,9 +505,14 @@ function OrderConfirmation({
           Download breakdown
         </Button>
       </div>
-      <Link to="/shop" className="eyebrow mt-8 inline-block border-b border-foreground pb-1">
-        Continue shopping
-      </Link>
+      <div className="mt-8 flex gap-6">
+        <Link to="/track" search={{ ref: order.reference }} className="eyebrow inline-block border-b border-foreground pb-1">
+          Track your order
+        </Link>
+        <Link to="/shop" className="eyebrow inline-block border-b border-foreground pb-1">
+          Continue shopping
+        </Link>
+      </div>
     </div>
   );
 }

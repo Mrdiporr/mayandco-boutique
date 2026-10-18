@@ -121,6 +121,56 @@ export type Database = {
           },
         ]
       }
+      order_lookup_attempts: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+        }
+        Relationships: []
+      }
+      order_status_events: {
+        Row: {
+          created_at: string
+          id: string
+          note: string
+          order_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string
+          order_id: string
+          status: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string
+          order_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           address: string
@@ -132,6 +182,8 @@ export type Database = {
           email: string
           has_pre_order: boolean
           id: string
+          paid_at: string | null
+          paystack_reference: string | null
           phone: string
           reference: string
           shipping: number
@@ -139,6 +191,7 @@ export type Database = {
           status: string
           subtotal: number
           total: number
+          tracking_note: string
           updated_at: string
         }
         Insert: {
@@ -151,6 +204,8 @@ export type Database = {
           email?: string
           has_pre_order?: boolean
           id?: string
+          paid_at?: string | null
+          paystack_reference?: string | null
           phone?: string
           reference: string
           shipping?: number
@@ -158,6 +213,7 @@ export type Database = {
           status?: string
           subtotal?: number
           total?: number
+          tracking_note?: string
           updated_at?: string
         }
         Update: {
@@ -170,6 +226,8 @@ export type Database = {
           email?: string
           has_pre_order?: boolean
           id?: string
+          paid_at?: string | null
+          paystack_reference?: string | null
           phone?: string
           reference?: string
           shipping?: number
@@ -177,6 +235,7 @@ export type Database = {
           status?: string
           subtotal?: number
           total?: number
+          tracking_note?: string
           updated_at?: string
         }
         Relationships: []
@@ -340,6 +399,7 @@ export type Database = {
           account_name: string
           account_number: string
           bank_name: string
+          enable_manual_transfer: boolean
           id: boolean
           instagram_handle: string
           shipping_fee: number
@@ -351,6 +411,7 @@ export type Database = {
           account_name?: string
           account_number?: string
           bank_name?: string
+          enable_manual_transfer?: boolean
           id?: boolean
           instagram_handle?: string
           shipping_fee?: number
@@ -362,6 +423,7 @@ export type Database = {
           account_name?: string
           account_number?: string
           bank_name?: string
+          enable_manual_transfer?: boolean
           id?: boolean
           instagram_handle?: string
           shipping_fee?: number

@@ -28,6 +28,7 @@ export const getStorefront = createServerFn({ method: "GET" }).handler(async () 
     shippingFee: s?.shipping_fee ?? 5000,
     transferInstructions: s?.transfer_instructions ?? "",
     instagramHandle: s?.instagram_handle ?? "mayandco.ng",
+    enableManualTransfer: s?.enable_manual_transfer ?? true,
   };
   return { products, categories, settings };
 });
@@ -51,7 +52,7 @@ const orderInput = z.object({
     city: z.string().trim().max(100).default(""),
     state: z.string().trim().max(100).default(""),
   }),
-  channel: z.enum(["transfer", "whatsapp"]),
+  channel: z.enum(["transfer", "whatsapp", "paystack"]),
   items: z
     .array(
       z.object({
@@ -65,66 +66,189 @@ const orderInput = z.object({
     .max(40),
 });
 
+type OrderInput = z.infer<typeof orderInput>;
+
+/** Server-only: price items from the database and write the order with the service role. */
+async function createOrder(data: OrderInput, extra: { paystackReference?: string } = {}) {
+  const sb = publicSupabase();
+  const slugs = [...new Set(data.items.map((i) => i.slug))];
+  const [{ data: products }, { data: settings }] = await Promise.all([
+    sb.from("products").select("slug, name, price").in("slug", slugs).eq("active", true),
+    sb.from("store_settings").select("shipping_fee, enable_manual_transfer").maybeSingle(),
+  ]);
+  if (data.channel === "transfer" && settings?.enable_manual_transfer === false) {
+    throw new Error("Manual bank transfer is turned off. Please pay online.");
+  }
+
+  const priced = data.items.flatMap((item) => {
+    const product = (products ?? []).find((p) => p.slug === item.slug);
+    if (!product) return [];
+    return [
+      {
+        product_slug: product.slug,
+        name: product.name,
+        size: item.size,
+        quantity: item.quantity,
+        unit_price: product.price,
+        pre_order: item.preOrder,
+      },
+    ];
+  });
+  if (priced.length === 0) throw new Error("No valid items in this order.");
+
+  const subtotal = priced.reduce((n, l) => n + l.unit_price * l.quantity, 0);
+  const shipping = settings?.shipping_fee ?? 5000;
+  const reference = `MC-${Date.now().toString(36).toUpperCase()}`;
+
+  // Orders are written with the service role: prices/totals are computed here,
+  // and no public API caller can insert or tamper with order rows.
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: order, error } = await supabaseAdmin
+    .from("orders")
+    .insert({
+      reference,
+      customer_name: data.customer.name,
+      email: data.customer.email,
+      phone: data.customer.phone,
+      address: data.customer.address,
+      city: data.customer.city,
+      state: data.customer.state,
+      channel: data.channel,
+      status: data.channel === "whatsapp" ? "awaiting_whatsapp" : "pending_payment",
+      subtotal,
+      shipping,
+      total: subtotal + shipping,
+      has_pre_order: priced.some((l) => l.pre_order),
+      paystack_reference: extra.paystackReference ?? null,
+    })
+    .select("id, reference")
+    .single();
+  if (error || !order) throw new Error("Could not save the order. Please try again.");
+
+  await Promise.all([
+    supabaseAdmin.from("order_items").insert(priced.map((l) => ({ ...l, order_id: order.id }))),
+    supabaseAdmin
+      .from("order_status_events")
+      .insert({ order_id: order.id, status: "received", note: "" }),
+  ]);
+
+  return { id: order.id, reference: order.reference, subtotal, shipping, total: subtotal + shipping };
+}
+
 export const placeOrder = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => orderInput.parse(data))
   .handler(async ({ data }) => {
-    const sb = publicSupabase();
-    const slugs = [...new Set(data.items.map((i) => i.slug))];
-    const [{ data: products }, { data: settings }] = await Promise.all([
-      sb.from("products").select("slug, name, price").in("slug", slugs).eq("active", true),
-      sb.from("store_settings").select("shipping_fee").maybeSingle(),
-    ]);
+    if (data.channel === "paystack") throw new Error("Use online payment for this option.");
+    const { id: _id, ...result } = await createOrder(data);
+    return result;
+  });
 
-    const priced = data.items.flatMap((item) => {
-      const product = (products ?? []).find((p) => p.slug === item.slug);
-      if (!product) return [];
-      return [
-        {
-          product_slug: product.slug,
-          name: product.name,
-          size: item.size,
-          quantity: item.quantity,
-          unit_price: product.price,
-          pre_order: item.preOrder,
-        },
-      ];
+/** Create the order server-side, then open a Paystack payment for its server-computed total. */
+export const startPaystackPayment = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    orderInput.extend({ channel: z.literal("paystack") }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { initializeTransaction } = await import("@/lib/paystack.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const { toKobo } = await import("@/lib/paystack");
+    const paystackReference = `PS-${crypto.randomUUID()}`;
+    const order = await createOrder(data, { paystackReference });
+    const origin = new URL(getRequest().url).origin;
+    const email =
+      data.customer.email ||
+      `order-${order.reference.toLowerCase()}@mayandcoboutique.com`;
+    const url = await initializeTransaction({
+      email,
+      amountKobo: toKobo(order.total),
+      reference: paystackReference,
+      callbackUrl: `${origin}/checkout/callback`,
+      metadata: { order_reference: order.reference },
     });
-    if (priced.length === 0) throw new Error("No valid items in this order.");
+    return { url, reference: order.reference };
+  });
 
-    const subtotal = priced.reduce((n, l) => n + l.unit_price * l.quantity, 0);
-    const shipping = settings?.shipping_fee ?? 5000;
-    const reference = `MC-${Date.now().toString(36).toUpperCase()}`;
+/** Called from the Paystack return page; re-verifies with Paystack before trusting anything. */
+export const verifyPaystackPayment = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z.object({ reference: z.string().trim().min(4).max(80) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { confirmPaystackPayment } = await import("@/lib/paystack.server");
+    const result = await confirmPaystackPayment(data.reference);
+    if (!result) return { found: false as const };
+    return {
+      found: true as const,
+      paid: result.paid,
+      reference: result.reference,
+      total: result.total,
+    };
+  });
 
-    // Orders are written with the service role: prices/totals are computed here,
-    // and no public API caller can insert or tamper with order rows.
+const trackInput = z.object({
+  reference: z.string().trim().min(4).max(40),
+  phone: z.string().trim().min(7).max(30),
+});
+
+/** Public order lookup: needs reference AND matching phone; rate-limited; returns no PII. */
+export const trackOrder = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => trackInput.parse(data))
+  .handler(async ({ data }) => {
+    const { normalisePhone, stageForStatus } = await import("@/lib/paystack");
+    const { getRequestIP } = await import("@tanstack/react-start/server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: order, error } = await supabaseAdmin
+    const key = `ip:${getRequestIP({ xForwardedFor: true }) ?? "unknown"}`;
+    const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    const { count } = await supabaseAdmin
+      .from("order_lookup_attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("key", key)
+      .gte("created_at", since);
+    if ((count ?? 0) >= 10) {
+      throw new Error("Too many attempts. Please wait 15 minutes and try again.");
+    }
+
+    const reference = data.reference.toUpperCase();
+    const { data: order } = await supabaseAdmin
       .from("orders")
-      .insert({
-        reference,
-        customer_name: data.customer.name,
-        email: data.customer.email,
-        phone: data.customer.phone,
-        address: data.customer.address,
-        city: data.customer.city,
-        state: data.customer.state,
-        channel: data.channel,
-        status: data.channel === "whatsapp" ? "awaiting_whatsapp" : "pending_payment",
-        subtotal,
-        shipping,
-        total: subtotal + shipping,
-        has_pre_order: priced.some((l) => l.pre_order),
-      })
-      .select("id, reference")
-      .single();
-    if (error || !order) throw new Error("Could not save the order. Please try again.");
+      .select("id, reference, phone, status, created_at, paid_at, tracking_note, has_pre_order, total")
+      .eq("reference", reference)
+      .maybeSingle();
 
-    await supabaseAdmin
-      .from("order_items")
-      .insert(priced.map((l) => ({ ...l, order_id: order.id })));
+    if (!order || normalisePhone(order.phone) !== normalisePhone(data.phone)) {
+      await supabaseAdmin.from("order_lookup_attempts").insert({ key });
+      return { found: false as const };
+    }
 
-    return { reference: order.reference, subtotal, shipping, total: subtotal + shipping };
+    const [{ data: events }, { data: items }] = await Promise.all([
+      supabaseAdmin
+        .from("order_status_events")
+        .select("status, note, created_at")
+        .eq("order_id", order.id)
+        .order("created_at"),
+      supabaseAdmin
+        .from("order_items")
+        .select("name, size, quantity, pre_order")
+        .eq("order_id", order.id),
+    ]);
+
+    return {
+      found: true as const,
+      reference: order.reference,
+      stage: stageForStatus(order.status),
+      createdAt: order.created_at,
+      total: order.total,
+      hasPreOrder: order.has_pre_order,
+      trackingNote: order.tracking_note ?? "",
+      events: (events ?? []).map((e) => ({
+        stage: stageForStatus(e.status),
+        note: e.note,
+        at: e.created_at,
+      })),
+      items: items ?? [],
+    };
   });
 
 const requestInput = z.object({

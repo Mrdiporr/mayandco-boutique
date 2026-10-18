@@ -31,6 +31,7 @@ export type StoreSettings = {
   shippingFee: number;
   transferInstructions: string;
   instagramHandle: string;
+  enableManualTransfer: boolean;
 };
 
 export type CatalogueItem = {

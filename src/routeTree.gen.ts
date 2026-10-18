@@ -19,9 +19,12 @@ import { Route as NewArrivalsRouteImport } from './routes/new-arrivals'
 import { Route as PaymentPolicyRouteImport } from './routes/payment-policy'
 import { Route as PreOrderRouteImport } from './routes/pre-order'
 import { Route as ShippingRouteImport } from './routes/shipping'
+import { Route as TrackRouteImport } from './routes/track'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as CheckoutCallbackRouteImport } from './routes/checkout.callback'
 import { Route as ShopIndexRouteImport } from './routes/shop.index'
 import { Route as ShopSlugRouteImport } from './routes/shop.$slug'
+import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
 import { Route as ApiPublicMediaSplatRouteImport } from './routes/api/public/media.$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -73,10 +76,20 @@ const ShippingRoute = ShippingRouteImport.update({
   path: '/shipping',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TrackRoute = TrackRouteImport.update({
+  id: '/track',
+  path: '/track',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const CheckoutCallbackRoute = CheckoutCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => CheckoutRoute,
 } as any)
 const ShopIndexRoute = ShopIndexRouteImport.update({
   id: '/shop/',
@@ -88,6 +101,12 @@ const ShopSlugRoute = ShopSlugRouteImport.update({
   path: '/shop/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPaystackWebhookRoute =
+  ApiPublicPaystackWebhookRouteImport.update({
+    id: '/api/public/paystack-webhook',
+    path: '/api/public/paystack-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicMediaSplatRoute = ApiPublicMediaSplatRouteImport.update({
   id: '/api/public/media/$',
   path: '/api/public/media/$',
@@ -98,30 +117,36 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/catalogue': typeof CatalogueRoute
-  '/checkout': typeof CheckoutRoute
+  '/checkout': typeof CheckoutRouteWithChildren
   '/exchange-policy': typeof ExchangePolicyRoute
   '/new-arrivals': typeof NewArrivalsRoute
   '/payment-policy': typeof PaymentPolicyRoute
   '/pre-order': typeof PreOrderRoute
   '/shipping': typeof ShippingRoute
+  '/track': typeof TrackRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/checkout/callback': typeof CheckoutCallbackRoute
   '/shop/$slug': typeof ShopSlugRoute
   '/shop/': typeof ShopIndexRoute
+  '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/media/$': typeof ApiPublicMediaSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/catalogue': typeof CatalogueRoute
-  '/checkout': typeof CheckoutRoute
+  '/checkout': typeof CheckoutRouteWithChildren
   '/exchange-policy': typeof ExchangePolicyRoute
   '/new-arrivals': typeof NewArrivalsRoute
   '/payment-policy': typeof PaymentPolicyRoute
   '/pre-order': typeof PreOrderRoute
   '/shipping': typeof ShippingRoute
+  '/track': typeof TrackRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/checkout/callback': typeof CheckoutCallbackRoute
   '/shop/$slug': typeof ShopSlugRoute
   '/shop': typeof ShopIndexRoute
+  '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/media/$': typeof ApiPublicMediaSplatRoute
 }
 export interface FileRoutesById {
@@ -130,15 +155,18 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/catalogue': typeof CatalogueRoute
-  '/checkout': typeof CheckoutRoute
+  '/checkout': typeof CheckoutRouteWithChildren
   '/exchange-policy': typeof ExchangePolicyRoute
   '/new-arrivals': typeof NewArrivalsRoute
   '/payment-policy': typeof PaymentPolicyRoute
   '/pre-order': typeof PreOrderRoute
   '/shipping': typeof ShippingRoute
+  '/track': typeof TrackRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/checkout/callback': typeof CheckoutCallbackRoute
   '/shop/$slug': typeof ShopSlugRoute
   '/shop/': typeof ShopIndexRoute
+  '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/media/$': typeof ApiPublicMediaSplatRoute
 }
 export interface FileRouteTypes {
@@ -153,9 +181,12 @@ export interface FileRouteTypes {
     | '/payment-policy'
     | '/pre-order'
     | '/shipping'
+    | '/track'
     | '/admin'
+    | '/checkout/callback'
     | '/shop/$slug'
     | '/shop/'
+    | '/api/public/paystack-webhook'
     | '/api/public/media/$'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -168,9 +199,12 @@ export interface FileRouteTypes {
     | '/payment-policy'
     | '/pre-order'
     | '/shipping'
+    | '/track'
     | '/admin'
+    | '/checkout/callback'
     | '/shop/$slug'
     | '/shop'
+    | '/api/public/paystack-webhook'
     | '/api/public/media/$'
   id:
     | '__root__'
@@ -184,9 +218,12 @@ export interface FileRouteTypes {
     | '/payment-policy'
     | '/pre-order'
     | '/shipping'
+    | '/track'
     | '/_authenticated/admin'
+    | '/checkout/callback'
     | '/shop/$slug'
     | '/shop/'
+    | '/api/public/paystack-webhook'
     | '/api/public/media/$'
   fileRoutesById: FileRoutesById
 }
@@ -195,14 +232,16 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   CatalogueRoute: typeof CatalogueRoute
-  CheckoutRoute: typeof CheckoutRoute
+  CheckoutRoute: typeof CheckoutRouteWithChildren
   ExchangePolicyRoute: typeof ExchangePolicyRoute
   NewArrivalsRoute: typeof NewArrivalsRoute
   PaymentPolicyRoute: typeof PaymentPolicyRoute
   PreOrderRoute: typeof PreOrderRoute
   ShippingRoute: typeof ShippingRoute
+  TrackRoute: typeof TrackRoute
   ShopSlugRoute: typeof ShopSlugRoute
   ShopIndexRoute: typeof ShopIndexRoute
+  ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
   ApiPublicMediaSplatRoute: typeof ApiPublicMediaSplatRoute
 }
 
@@ -278,12 +317,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShippingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/track': {
+      id: '/track'
+      path: '/track'
+      fullPath: '/track'
+      preLoaderRoute: typeof TrackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/checkout/callback': {
+      id: '/checkout/callback'
+      path: '/callback'
+      fullPath: '/checkout/callback'
+      preLoaderRoute: typeof CheckoutCallbackRouteImport
+      parentRoute: typeof CheckoutRoute
     }
     '/shop/': {
       id: '/shop/'
@@ -297,6 +350,13 @@ declare module '@tanstack/react-router' {
       path: '/shop/$slug'
       fullPath: '/shop/$slug'
       preLoaderRoute: typeof ShopSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/paystack-webhook': {
+      id: '/api/public/paystack-webhook'
+      path: '/api/public/paystack-webhook'
+      fullPath: '/api/public/paystack-webhook'
+      preLoaderRoute: typeof ApiPublicPaystackWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/media/$': {
@@ -320,19 +380,33 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface CheckoutRouteChildren {
+  CheckoutCallbackRoute: typeof CheckoutCallbackRoute
+}
+
+const CheckoutRouteChildren: CheckoutRouteChildren = {
+  CheckoutCallbackRoute: CheckoutCallbackRoute,
+}
+
+const CheckoutRouteWithChildren = CheckoutRoute._addFileChildren(
+  CheckoutRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   CatalogueRoute: CatalogueRoute,
-  CheckoutRoute: CheckoutRoute,
+  CheckoutRoute: CheckoutRouteWithChildren,
   ExchangePolicyRoute: ExchangePolicyRoute,
   NewArrivalsRoute: NewArrivalsRoute,
   PaymentPolicyRoute: PaymentPolicyRoute,
   PreOrderRoute: PreOrderRoute,
   ShippingRoute: ShippingRoute,
+  TrackRoute: TrackRoute,
   ShopSlugRoute: ShopSlugRoute,
   ShopIndexRoute: ShopIndexRoute,
+  ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
   ApiPublicMediaSplatRoute: ApiPublicMediaSplatRoute,
 }
 export const routeTree = rootRouteImport

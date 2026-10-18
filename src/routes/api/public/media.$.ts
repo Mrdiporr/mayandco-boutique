@@ -5,7 +5,21 @@ export const Route = createFileRoute("/api/public/media/$")({
     handlers: {
       GET: async ({ params }) => {
         const path = (params as { _splat?: string })._splat ?? "";
-        if (!path || path.includes("..")) return new Response("Not found", { status: 404 });
+        if (!path || !/^[A-Za-z0-9._-]{1,200}$/.test(path) || path.includes("..")) {
+          return new Response("Not found", { status: 404 });
+        }
+
+        // Only serve files the public storefront actually references, checked as anon (RLS applies).
+        const url = `/api/public/media/${path}`;
+        const { publicSupabase } = await import("@/lib/supabase-public.server");
+        const pub = publicSupabase();
+        const [p, c, pi] = await Promise.all([
+          pub.from("products").select("id").eq("image", url).eq("active", true).limit(1),
+          pub.from("catalogue_items").select("id").eq("image", url).eq("visible", true).limit(1),
+          pub.from("product_images").select("id").eq("url", url).limit(1),
+        ]);
+        const referenced = [p, c, pi].some((r) => !r.error && (r.data?.length ?? 0) > 0);
+        if (!referenced) return new Response("Not found", { status: 404 });
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data, error } = await supabaseAdmin.storage.from("store-images").download(path);

@@ -25,7 +25,7 @@ export const Route = createFileRoute("/checkout/callback")({
 type State =
   | { kind: "loading" }
   | { kind: "paid"; reference: string; total: number }
-  | { kind: "failed"; reference?: string };
+  | { kind: "failed"; reference?: string | undefined };
 
 function CallbackPage() {
   const { reference } = Route.useSearch();

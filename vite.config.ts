@@ -15,4 +15,4 @@ export default defineConfig({
     server: { entry: "server" },
   },
   ...(isVercel ? { nitro: { preset: "vercel" } } : {}),
-} as Parameters<typeof defineConfig>[0]);
+});

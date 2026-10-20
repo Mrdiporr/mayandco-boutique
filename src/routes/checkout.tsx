@@ -11,7 +11,7 @@ import { useCart, type CartLine } from "@/context/cart";
 import { naira } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { storefrontQuery } from "@/lib/store-queries";
-import { placeOrder, startPaystackPayment } from "@/lib/store.functions";
+import { placeOrder, startCardPayment } from "@/lib/store.functions";
 import { openWhatsApp } from "@/lib/whatsapp";
 
 export const Route = createFileRoute("/checkout")({
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/checkout")({
   component: CheckoutPage,
 });
 
-type Channel = "paystack" | "transfer" | "whatsapp";
+type Channel = "stripe" | "transfer" | "whatsapp";
 
 type Details = {
   name: string;
@@ -62,7 +62,7 @@ function CheckoutPage() {
   const { lines, subtotal, clear } = useCart();
   const [details, setDetails] = useState<Details>(emptyDetails);
   const [errors, setErrors] = useState<Partial<Record<keyof Details, string>>>({});
-  const [channel, setChannel] = useState<Channel>("paystack");
+  const [channel, setChannel] = useState<Channel>("stripe");
   const [submitting, setSubmitting] = useState(false);
   const [confirmed, setConfirmed] = useState<Confirmed | null>(null);
 
@@ -125,9 +125,9 @@ function CheckoutPage() {
       },
       items: lines.map((l) => ({ slug: l.slug, size: l.size, quantity: l.quantity, preOrder: l.preOrder })),
     };
-    if (channel === "paystack") {
+    if (channel === "stripe") {
       try {
-        const { url } = await startPaystackPayment({ data: { ...payload, channel: "paystack" } });
+        const { url } = await startCardPayment({ data: { ...payload, channel: "stripe" } });
         window.location.href = url;
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Could not start payment. Please try again.");
@@ -234,11 +234,11 @@ function CheckoutPage() {
               <h2 className="eyebrow text-muted-foreground">How would you like to finish?</h2>
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <ChannelCard
-                  active={channel === "paystack"}
-                  onClick={() => setChannel("paystack")}
+                  active={channel === "stripe"}
+                  onClick={() => setChannel("stripe")}
                   icon={<CreditCard className="h-5 w-5" />}
                   title="Pay now"
-                  copy="Card, bank transfer or USSD via Paystack. Confirmed instantly — no follow-up needed."
+                  copy="Pay securely by card (Apple Pay & Google Pay supported) via Stripe. Confirmed instantly — no follow-up needed."
                 />
                 {settings.enableManualTransfer && (
                 <ChannelCard
@@ -284,7 +284,7 @@ function CheckoutPage() {
                 className="mt-8 w-full rounded-none py-7 text-sm tracking-[0.18em] uppercase"
               >
                 {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {channel === "paystack"
+                {channel === "stripe"
                   ? `Pay ${naira(total)} securely`
                   : channel === "transfer"
                   ? `Confirm order & send proof on WhatsApp`

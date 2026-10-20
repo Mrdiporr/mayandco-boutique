@@ -6,10 +6,10 @@ import { Layout } from "@/components/store/Layout";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/cart";
 import { naira } from "@/lib/format";
-import { verifyPaystackPayment } from "@/lib/store.functions";
+import { verifyCardPayment } from "@/lib/store.functions";
 
 export const Route = createFileRoute("/checkout/callback")({
-  validateSearch: z.object({ reference: z.string().max(80).optional() }),
+  validateSearch: z.object({ session_id: z.string().max(255).optional() }),
   head: () => ({
     meta: [
       { title: "Payment Confirmation — MAY & CO." },
@@ -28,17 +28,17 @@ type State =
   | { kind: "failed"; reference?: string | undefined };
 
 function CallbackPage() {
-  const { reference } = Route.useSearch();
+  const { session_id: sessionId } = Route.useSearch();
   const { clear } = useCart();
   const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
-    if (!reference) return setState({ kind: "failed" });
+    if (!sessionId) return setState({ kind: "failed" });
     let tries = 0;
     let cancelled = false;
     const run = async () => {
       try {
-        const r = await verifyPaystackPayment({ data: { reference } });
+        const r = await verifyCardPayment({ data: { sessionId } });
         if (cancelled) return;
         if (r.found && r.paid) {
           clear();
@@ -55,7 +55,7 @@ function CallbackPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reference]);
+  }, [sessionId]);
 
   return (
     <Layout>

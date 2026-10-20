@@ -384,3 +384,46 @@ export const uploadStoreImage = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { url: `/api/public/media/${path}` };
   });
+
+/** Admin-only: report whether a Stripe key is set (never returns the key itself). */
+export const getPaymentSettings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { data } = await context.supabase
+      .from("store_private_settings")
+      .select("stripe_secret_key, updated_at")
+      .eq("id", true)
+      .maybeSingle();
+    const key = data?.stripe_secret_key ?? "";
+    return {
+      hasSavedKey: key.length > 0,
+      mode: key.startsWith("sk_live_") || key.startsWith("rk_live_") ? "live" : key ? "test" : null,
+      usingFallback: !key && Boolean(process.env["STRIPE_TEST_API_KEY"] || process.env["STRIPE_SECRET_KEY"]),
+      updatedAt: data?.updated_at ?? null,
+    };
+  });
+
+export const saveStripeKey = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ key: z.string().trim().max(255) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { isStripeSecretKey } = await import("@/lib/stripe");
+    if (data.key && !isStripeSecretKey(data.key)) {
+      throw new Error("That doesn't look like a Stripe secret key (sk_test_… or sk_live_…).");
+    }
+    if (data.key) {
+      const res = await fetch("https://api.stripe.com/v1/balance", {
+        headers: { Authorization: `Bearer ${data.key}` },
+      });
+      if (!res.ok) throw new Error("Stripe rejected this key. Please check it and try again.");
+    }
+    const { error } = await context.supabase
+      .from("store_private_settings")
+      .upsert({ id: true, stripe_secret_key: data.key, updated_at: new Date().toISOString() });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

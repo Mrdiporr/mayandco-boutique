@@ -37,3 +37,18 @@ describe("tracking lookup", () => {
     expect(stageForStatus("cancelled")).toBe("cancelled");
   });
 });
+
+import { isStripeSecretKey, sessionMatchesOrder } from "../src/lib/stripe";
+
+describe("stripe payment check", () => {
+  test("only a paid NGN session for the exact order total counts", () => {
+    expect(sessionMatchesOrder({ payment_status: "paid", amount_total: 4_400_000, currency: "ngn" }, 44000)).toBe(true);
+    expect(sessionMatchesOrder({ payment_status: "paid", amount_total: 4_399_900, currency: "ngn" }, 44000)).toBe(false);
+    expect(sessionMatchesOrder({ payment_status: "unpaid", amount_total: 4_400_000, currency: "ngn" }, 44000)).toBe(false);
+    expect(sessionMatchesOrder({ payment_status: "paid", amount_total: 4_400_000, currency: "usd" }, 44000)).toBe(false);
+  });
+  test("only Stripe secret keys are accepted in settings", () => {
+    expect(isStripeSecretKey("sk_test_abc123")).toBe(true);
+    expect(isStripeSecretKey("pk_test_abc123")).toBe(false);
+  });
+});

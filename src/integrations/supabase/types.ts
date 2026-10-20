@@ -189,6 +189,7 @@ export type Database = {
           shipping: number
           state: string
           status: string
+          stripe_session_id: string | null
           subtotal: number
           total: number
           tracking_note: string
@@ -211,6 +212,7 @@ export type Database = {
           shipping?: number
           state?: string
           status?: string
+          stripe_session_id?: string | null
           subtotal?: number
           total?: number
           tracking_note?: string
@@ -233,6 +235,7 @@ export type Database = {
           shipping?: number
           state?: string
           status?: string
+          stripe_session_id?: string | null
           subtotal?: number
           total?: number
           tracking_note?: string
@@ -390,6 +393,24 @@ export type Database = {
           phone?: string
           sizes?: string
           status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      store_private_settings: {
+        Row: {
+          id: boolean
+          stripe_secret_key: string
+          updated_at: string
+        }
+        Insert: {
+          id?: boolean
+          stripe_secret_key?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: boolean
+          stripe_secret_key?: string
           updated_at?: string
         }
         Relationships: []

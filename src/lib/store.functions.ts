@@ -52,7 +52,7 @@ const orderInput = z.object({
     city: z.string().trim().max(100).default(""),
     state: z.string().trim().max(100).default(""),
   }),
-  channel: z.enum(["transfer", "whatsapp", "paystack"]),
+  channel: z.enum(["transfer", "whatsapp", "stripe"]),
   items: z
     .array(
       z.object({
@@ -69,7 +69,7 @@ const orderInput = z.object({
 type OrderInput = z.infer<typeof orderInput>;
 
 /** Server-only: price items from the database and write the order with the service role. */
-async function createOrder(data: OrderInput, extra: { paystackReference?: string } = {}) {
+async function createOrder(data: OrderInput) {
   const sb = publicSupabase();
   const slugs = [...new Set(data.items.map((i) => i.slug))];
   const [{ data: products }, { data: settings }] = await Promise.all([
@@ -120,7 +120,6 @@ async function createOrder(data: OrderInput, extra: { paystackReference?: string
       shipping,
       total: subtotal + shipping,
       has_pre_order: priced.some((l) => l.pre_order),
-      paystack_reference: extra.paystackReference ?? null,
     })
     .select("id, reference")
     .single();
@@ -139,44 +138,39 @@ async function createOrder(data: OrderInput, extra: { paystackReference?: string
 export const placeOrder = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => orderInput.parse(data))
   .handler(async ({ data }) => {
-    if (data.channel === "paystack") throw new Error("Use online payment for this option.");
+    if (data.channel === "stripe") throw new Error("Use online payment for this option.");
     const { id: _id, ...result } = await createOrder(data);
     return result;
   });
 
-/** Create the order server-side, then open a Paystack payment for its server-computed total. */
-export const startPaystackPayment = createServerFn({ method: "POST" })
+/** Create the order server-side, then open a Stripe Checkout for its server-computed total. */
+export const startCardPayment = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
-    orderInput.extend({ channel: z.literal("paystack") }).parse(data),
+    orderInput.extend({ channel: z.literal("stripe") }).parse(data),
   )
   .handler(async ({ data }) => {
-    const { initializeTransaction } = await import("@/lib/paystack.server");
+    const { createCheckoutSession } = await import("@/lib/stripe.server");
     const { getRequest } = await import("@tanstack/react-start/server");
-    const { toKobo } = await import("@/lib/paystack");
-    const paystackReference = `PS-${crypto.randomUUID()}`;
-    const order = await createOrder(data, { paystackReference });
-    const origin = new URL(getRequest().url).origin;
-    const email =
-      data.customer.email ||
-      `order-${order.reference.toLowerCase()}@mayandcoboutique.com`;
-    const url = await initializeTransaction({
-      email,
-      amountKobo: toKobo(order.total),
-      reference: paystackReference,
-      callbackUrl: `${origin}/checkout/callback`,
-      metadata: { order_reference: order.reference },
+    const order = await createOrder(data);
+    const session = await createCheckoutSession({
+      orderReference: order.reference,
+      amountKobo: Math.round(order.total * 100),
+      email: data.customer.email || undefined,
+      origin: new URL(getRequest().url).origin,
     });
-    return { url, reference: order.reference };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("orders").update({ stripe_session_id: session.id }).eq("id", order.id);
+    return { url: session.url, reference: order.reference };
   });
 
-/** Called from the Paystack return page; re-verifies with Paystack before trusting anything. */
-export const verifyPaystackPayment = createServerFn({ method: "POST" })
+/** Called from the Stripe return page; re-verifies with Stripe before trusting anything. */
+export const verifyCardPayment = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
-    z.object({ reference: z.string().trim().min(4).max(80) }).parse(data),
+    z.object({ sessionId: z.string().trim().min(8).max(255) }).parse(data),
   )
   .handler(async ({ data }) => {
-    const { confirmPaystackPayment } = await import("@/lib/paystack.server");
-    const result = await confirmPaystackPayment(data.reference);
+    const { confirmStripePayment } = await import("@/lib/stripe.server");
+    const result = await confirmStripePayment(data.sessionId);
     if (!result) return { found: false as const };
     return {
       found: true as const,

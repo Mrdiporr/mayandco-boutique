@@ -32,6 +32,8 @@ import {
   updateOrder,
   updateRequestStatus,
   uploadStoreImage,
+  getPaymentSettings,
+  saveStripeKey,
 } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -1040,6 +1042,7 @@ function SettingsPanel({ data, onSaved }: { data: AdminData; onSaved: () => void
   };
 
   return (
+    <div className="space-y-6">
     <Card>
       <h2 className="font-display text-2xl">Store settings</h2>
       <div className="mt-6 grid gap-5 sm:grid-cols-2">
@@ -1079,11 +1082,74 @@ function SettingsPanel({ data, onSaved }: { data: AdminData; onSaved: () => void
           checked={form.enableManualTransfer}
           onChange={(e) => setForm({ ...form, enableManualTransfer: e.target.checked })}
         />
-        Offer manual bank transfer at checkout (backup to Paystack)
+        Offer manual bank transfer at checkout (backup to card payments)
       </label>
       <Button onClick={save} disabled={busy} className="mt-6 rounded-none">
         {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save settings
       </Button>
+    </Card>
+    <StripeSettings />
+    </div>
+  );
+}
+
+function StripeSettings() {
+  const { data, refetch } = useQuery({
+    queryKey: ["admin-payment-settings"],
+    queryFn: () => getPaymentSettings(),
+    retry: false,
+  });
+  const [key, setKey] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (value: string) => {
+    setBusy(true);
+    try {
+      await saveStripeKey({ data: { key: value } });
+      toast.success(value ? "Stripe key saved and verified" : "Stripe key removed");
+      setKey("");
+      refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save key");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const status = data?.hasSavedKey
+    ? `Saved (${data.mode} mode) — hidden for security`
+    : data?.usingFallback
+    ? "Using the Stripe key stored in project secrets"
+    : "Not set — card payments are off";
+
+  return (
+    <Card>
+      <h2 className="font-display text-2xl">Card payments (Stripe)</h2>
+      <p className="mt-2 text-sm text-muted-foreground">Status: {status}</p>
+      <div className="mt-6">
+        <Label className="eyebrow text-muted-foreground">Stripe secret key</Label>
+        <Input
+          type="password"
+          autoComplete="off"
+          placeholder={data?.hasSavedKey ? "•••••••• enter a new key to replace" : "sk_test_… or sk_live_…"}
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          className="mt-2 rounded-none"
+        />
+        <p className="mt-2 text-xs text-muted-foreground">
+          Find it in Stripe under Developers → API keys. It is checked with Stripe before saving and never shown again.
+        </p>
+      </div>
+      <div className="mt-6 flex gap-3">
+        <Button onClick={() => submit(key.trim())} disabled={busy || !key.trim()} className="rounded-none">
+          {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save key
+        </Button>
+        {data?.hasSavedKey && (
+          <Button variant="outline" onClick={() => submit("")} disabled={busy} className="rounded-none">
+            Remove key
+          </Button>
+        )}
+      </div>
     </Card>
   );
 }

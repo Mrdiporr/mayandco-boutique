@@ -69,7 +69,7 @@ const orderInput = z.object({
 type OrderInput = z.infer<typeof orderInput>;
 
 /** Server-only: price items from the database and write the order with the service role. */
-async function createOrder(data: OrderInput, extra: { paystackReference?: string } = {}) {
+async function createOrder(data: OrderInput) {
   const sb = publicSupabase();
   const slugs = [...new Set(data.items.map((i) => i.slug))];
   const [{ data: products }, { data: settings }] = await Promise.all([
@@ -120,7 +120,6 @@ async function createOrder(data: OrderInput, extra: { paystackReference?: string
       shipping,
       total: subtotal + shipping,
       has_pre_order: priced.some((l) => l.pre_order),
-      paystack_reference: extra.paystackReference ?? null,
     })
     .select("id, reference")
     .single();

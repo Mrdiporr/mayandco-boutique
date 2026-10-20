@@ -19,14 +19,14 @@ async function secretKey() {
   return key;
 }
 
-async function stripe(path: string, init: { method?: string; form?: URLSearchParams } = {}) {
+async function stripe(path: string, init: { method?: string; form?: URLSearchParams | undefined } = {}) {
   const res = await fetch(`${API}${path}`, {
     method: init.method ?? "GET",
     headers: {
       Authorization: `Bearer ${await secretKey()}`,
       ...(init.form ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
     },
-    body: init.form?.toString(),
+    body: init.form ? init.form.toString() : null,
   });
   const json = (await res.json().catch(() => null)) as any;
   if (!res.ok) {
@@ -39,7 +39,7 @@ async function stripe(path: string, init: { method?: string; form?: URLSearchPar
 export async function createCheckoutSession(input: {
   orderReference: string;
   amountKobo: number;
-  email?: string;
+  email?: string | undefined;
   origin: string;
 }) {
   const form = new URLSearchParams();

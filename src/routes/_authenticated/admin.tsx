@@ -1079,7 +1079,7 @@ function SettingsPanel({ data, onSaved }: { data: AdminData; onSaved: () => void
           checked={form.enableManualTransfer}
           onChange={(e) => setForm({ ...form, enableManualTransfer: e.target.checked })}
         />
-        Offer manual bank transfer at checkout (backup to Paystack)
+        Offer manual bank transfer at checkout (backup to card payments)
       </label>
       <Button onClick={save} disabled={busy} className="mt-6 rounded-none">
         {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save settings

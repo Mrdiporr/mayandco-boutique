@@ -1042,7 +1042,7 @@ function SettingsPanel({ data, onSaved }: { data: AdminData; onSaved: () => void
   };
 
   return (
-    <>
+    <div className="space-y-6">
     <Card>
       <h2 className="font-display text-2xl">Store settings</h2>
       <div className="mt-6 grid gap-5 sm:grid-cols-2">
@@ -1089,7 +1089,7 @@ function SettingsPanel({ data, onSaved }: { data: AdminData; onSaved: () => void
       </Button>
     </Card>
     <StripeSettings />
-    </>
+    </div>
   );
 }
 

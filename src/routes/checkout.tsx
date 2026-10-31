@@ -22,12 +22,12 @@ export const Route = createFileRoute("/checkout")({
       {
         name: "description",
         content:
-          "Complete your MAY & CO. order by bank transfer or WhatsApp. Strictly pre-paid — no payment on delivery.",
+          "Complete your MAY & CO. order by card, bank transfer or WhatsApp. Strictly pre-paid — no payment on delivery.",
       },
       { property: "og:title", content: "Secure Checkout — MAY & CO." },
       {
         property: "og:description",
-        content: "Bank transfer or WhatsApp checkout. Strictly pre-paid, no payment on delivery.",
+        content: "Card, bank transfer or WhatsApp checkout. Strictly pre-paid, no payment on delivery.",
       },
     ],
   }),

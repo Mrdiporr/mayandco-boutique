@@ -52,3 +52,14 @@ describe("stripe payment check", () => {
     expect(isStripeSecretKey("pk_test_abc123")).toBe(false);
   });
 });
+
+import { isPaystackSecretKey } from "../src/lib/paystack";
+
+describe("paystack key validation", () => {
+  test("only Paystack secret keys are accepted in settings", () => {
+    expect(isPaystackSecretKey("sk_test_abc123")).toBe(true);
+    expect(isPaystackSecretKey("sk_live_abc-123_X")).toBe(true);
+    expect(isPaystackSecretKey("pk_test_abc123")).toBe(false);
+    expect(isPaystackSecretKey("")).toBe(false);
+  });
+});

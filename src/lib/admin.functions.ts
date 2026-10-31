@@ -385,21 +385,30 @@ export const uploadStoreImage = createServerFn({ method: "POST" })
     return { url: `/api/public/media/${path}` };
   });
 
-/** Admin-only: report whether a Stripe key is set (never returns the key itself). */
+/** Admin-only: report whether payment keys are set (never returns the keys themselves). */
 export const getPaymentSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
     const { data } = await context.supabase
       .from("store_private_settings")
-      .select("stripe_secret_key, updated_at")
+      .select("stripe_secret_key, paystack_secret_key, updated_at")
       .eq("id", true)
       .maybeSingle();
-    const key = data?.stripe_secret_key ?? "";
+    const stripeKey = data?.stripe_secret_key ?? "";
+    const paystackKey = data?.paystack_secret_key ?? "";
     return {
-      hasSavedKey: key.length > 0,
-      mode: key.startsWith("sk_live_") || key.startsWith("rk_live_") ? "live" : key ? "test" : null,
-      usingFallback: !key && Boolean(process.env["STRIPE_TEST_API_KEY"] || process.env["STRIPE_SECRET_KEY"]),
+      hasSavedKey: stripeKey.length > 0,
+      mode: stripeKey.startsWith("sk_live_") || stripeKey.startsWith("rk_live_")
+        ? "live"
+        : stripeKey
+        ? "test"
+        : null,
+      usingFallback:
+        !stripeKey && Boolean(process.env["STRIPE_TEST_API_KEY"] || process.env["STRIPE_SECRET_KEY"]),
+      hasSavedPaystackKey: paystackKey.length > 0,
+      paystackMode: paystackKey.startsWith("sk_live_") ? "live" : paystackKey ? "test" : null,
+      paystackUsingFallback: !paystackKey && Boolean(process.env["PAYSTACK_SECRET_KEY"]),
       updatedAt: data?.updated_at ?? null,
     };
   });
@@ -424,6 +433,29 @@ export const saveStripeKey = createServerFn({ method: "POST" })
     const { error } = await context.supabase
       .from("store_private_settings")
       .upsert({ id: true, stripe_secret_key: data.key, updated_at: new Date().toISOString() });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const savePaystackKey = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ key: z.string().trim().max(255) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { isPaystackSecretKey } = await import("@/lib/paystack");
+    if (data.key && !isPaystackSecretKey(data.key)) {
+      throw new Error("That doesn't look like a Paystack secret key (sk_test_… or sk_live_…).");
+    }
+    if (data.key) {
+      const { checkPaystackKey } = await import("@/lib/paystack.server");
+      const ok = await checkPaystackKey(data.key);
+      if (!ok) throw new Error("Paystack rejected this key. Please check it and try again.");
+    }
+    const { error } = await context.supabase
+      .from("store_private_settings")
+      .upsert({ id: true, paystack_secret_key: data.key, updated_at: new Date().toISOString() });
     if (error) throw new Error(error.message);
     return { ok: true };
   });

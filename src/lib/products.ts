@@ -32,6 +32,8 @@ export type StoreSettings = {
   transferInstructions: string;
   instagramHandle: string;
   enableManualTransfer: boolean;
+  /** True when a Paystack key is configured server-side; the checkout shows the "Pay now" option. */
+  paystackEnabled: boolean;
 };
 
 export type CatalogueItem = {

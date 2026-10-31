@@ -20,6 +20,22 @@ export const getStorefront = createServerFn({ method: "GET" }).handler(async () 
   );
   const categories: CategoryRecord[] = (categoriesRes.data ?? []) as CategoryRecord[];
   const s = settingsRes.data;
+
+  // Whether Paystack is configured (admin-saved key first, then the project secret).
+  // Only the boolean leaves the server — never the key itself.
+  let paystackEnabled = false;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: priv } = await supabaseAdmin
+      .from("store_private_settings")
+      .select("paystack_secret_key")
+      .eq("id", true)
+      .maybeSingle();
+    paystackEnabled = Boolean(priv?.paystack_secret_key?.trim() || process.env["PAYSTACK_SECRET_KEY"]);
+  } catch {
+    paystackEnabled = false;
+  }
+
   const settings: StoreSettings = {
     whatsappNumber: s?.whatsapp_number ?? "2348148840440",
     bankName: s?.bank_name ?? "",
@@ -29,6 +45,7 @@ export const getStorefront = createServerFn({ method: "GET" }).handler(async () 
     transferInstructions: s?.transfer_instructions ?? "",
     instagramHandle: s?.instagram_handle ?? "mayandco.ng",
     enableManualTransfer: s?.enable_manual_transfer ?? true,
+    paystackEnabled,
   };
   return { products, categories, settings };
 });
@@ -52,7 +69,7 @@ const orderInput = z.object({
     city: z.string().trim().max(100).default(""),
     state: z.string().trim().max(100).default(""),
   }),
-  channel: z.enum(["transfer", "whatsapp", "stripe"]),
+  channel: z.enum(["transfer", "whatsapp", "stripe", "paystack"]),
   items: z
     .array(
       z.object({
@@ -138,7 +155,9 @@ async function createOrder(data: OrderInput) {
 export const placeOrder = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => orderInput.parse(data))
   .handler(async ({ data }) => {
-    if (data.channel === "stripe") throw new Error("Use online payment for this option.");
+    if (data.channel !== "transfer" && data.channel !== "whatsapp") {
+      throw new Error("Use online payment for this option.");
+    }
     const { id: _id, ...result } = await createOrder(data);
     return result;
   });
@@ -171,6 +190,47 @@ export const verifyCardPayment = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { confirmStripePayment } = await import("@/lib/stripe.server");
     const result = await confirmStripePayment(data.sessionId);
+    if (!result) return { found: false as const };
+    return {
+      found: true as const,
+      paid: result.paid,
+      reference: result.reference,
+      total: result.total,
+    };
+  });
+
+/** Create the order server-side, then open Paystack's secure payment window (card, transfer, USSD). */
+export const startPaystackPayment = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    orderInput.extend({ channel: z.literal("paystack") }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { initializePaystackPayment } = await import("@/lib/paystack.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const order = await createOrder(data);
+    const payment = await initializePaystackPayment({
+      reference: order.reference,
+      amountKobo: Math.round(order.total * 100),
+      email: data.customer.email || undefined,
+      callbackUrl: `${new URL(getRequest().url).origin}/checkout/callback?via=paystack`,
+    });
+    // Record the Paystack transaction reference so webhook/verify can find the order.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin
+      .from("orders")
+      .update({ paystack_reference: payment.reference })
+      .eq("id", order.id);
+    return { url: payment.authorizationUrl, reference: order.reference };
+  });
+
+/** Called from the Paystack return page; re-verifies with Paystack before trusting anything. */
+export const verifyPaystackPayment = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z.object({ reference: z.string().trim().min(6).max(100) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { confirmPaystackPayment } = await import("@/lib/paystack.server");
+    const result = await confirmPaystackPayment(data.reference);
     if (!result) return { found: false as const };
     return {
       found: true as const,

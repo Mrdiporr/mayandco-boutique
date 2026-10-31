@@ -6,10 +6,13 @@ import { Layout } from "@/components/store/Layout";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/cart";
 import { naira } from "@/lib/format";
-import { verifyCardPayment } from "@/lib/store.functions";
+import { verifyCardPayment, verifyPaystackPayment } from "@/lib/store.functions";
 
 export const Route = createFileRoute("/checkout/callback")({
-  validateSearch: z.object({ session_id: z.string().max(255).optional() }),
+  validateSearch: z.object({
+    session_id: z.string().max(255).optional(),
+    reference: z.string().max(100).optional(),
+  }),
   head: () => ({
     meta: [
       { title: "Payment Confirmation — MAY & CO." },
@@ -28,17 +31,20 @@ type State =
   | { kind: "failed"; reference?: string | undefined };
 
 function CallbackPage() {
-  const { session_id: sessionId } = Route.useSearch();
+  const { session_id: sessionId, reference } = Route.useSearch();
   const { clear } = useCart();
   const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
-    if (!sessionId) return setState({ kind: "failed" });
+    if (!sessionId && !reference) return setState({ kind: "failed" });
     let tries = 0;
     let cancelled = false;
     const run = async () => {
       try {
-        const r = await verifyCardPayment({ data: { sessionId } });
+        // Stripe returns a session_id; Paystack appends ?reference=… to the callback URL.
+        const r = sessionId
+          ? await verifyCardPayment({ data: { sessionId } })
+          : await verifyPaystackPayment({ data: { reference: reference! } });
         if (cancelled) return;
         if (r.found && r.paid) {
           clear();
@@ -55,7 +61,7 @@ function CallbackPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+  }, [sessionId, reference]);
 
   return (
     <Layout>

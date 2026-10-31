@@ -46,6 +46,11 @@ export function paymentMatchesOrder(
   );
 }
 
+/** Only Paystack secret keys are accepted in settings (pk_… publishable keys are not). */
+export function isPaystackSecretKey(key: string): boolean {
+  return /^sk_(test|live)_[A-Za-z0-9_-]+$/.test(key);
+}
+
 /** Normalise Nigerian phone numbers so 0814..., +234814..., 234814... all match. */
 export function normalisePhone(phone: string): string {
   let d = phone.replace(/\D/g, "");

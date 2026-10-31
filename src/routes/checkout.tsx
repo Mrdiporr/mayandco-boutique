@@ -11,7 +11,7 @@ import { useCart, type CartLine } from "@/context/cart";
 import { naira } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { storefrontQuery } from "@/lib/store-queries";
-import { placeOrder, startCardPayment } from "@/lib/store.functions";
+import { placeOrder, startCardPayment, startPaystackPayment } from "@/lib/store.functions";
 import { openWhatsApp } from "@/lib/whatsapp";
 
 export const Route = createFileRoute("/checkout")({
@@ -22,19 +22,19 @@ export const Route = createFileRoute("/checkout")({
       {
         name: "description",
         content:
-          "Complete your MAY & CO. order by bank transfer or WhatsApp. Strictly pre-paid — no payment on delivery.",
+          "Complete your MAY & CO. order by card, bank transfer or WhatsApp. Strictly pre-paid — no payment on delivery.",
       },
       { property: "og:title", content: "Secure Checkout — MAY & CO." },
       {
         property: "og:description",
-        content: "Bank transfer or WhatsApp checkout. Strictly pre-paid, no payment on delivery.",
+        content: "Card, bank transfer or WhatsApp checkout. Strictly pre-paid, no payment on delivery.",
       },
     ],
   }),
   component: CheckoutPage,
 });
 
-type Channel = "stripe" | "transfer" | "whatsapp";
+type Channel = "paystack" | "stripe" | "transfer" | "whatsapp";
 
 type Details = {
   name: string;
@@ -62,7 +62,7 @@ function CheckoutPage() {
   const { lines, subtotal, clear } = useCart();
   const [details, setDetails] = useState<Details>(emptyDetails);
   const [errors, setErrors] = useState<Partial<Record<keyof Details, string>>>({});
-  const [channel, setChannel] = useState<Channel>("stripe");
+  const [channel, setChannel] = useState<Channel>(settings.paystackEnabled ? "paystack" : "stripe");
   const [submitting, setSubmitting] = useState(false);
   const [confirmed, setConfirmed] = useState<Confirmed | null>(null);
 
@@ -125,6 +125,16 @@ function CheckoutPage() {
       },
       items: lines.map((l) => ({ slug: l.slug, size: l.size, quantity: l.quantity, preOrder: l.preOrder })),
     };
+    if (channel === "paystack") {
+      try {
+        const { url } = await startPaystackPayment({ data: { ...payload, channel: "paystack" } });
+        window.location.href = url;
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Could not start payment. Please try again.");
+        setSubmitting(false);
+      }
+      return;
+    }
     if (channel === "stripe") {
       try {
         const { url } = await startCardPayment({ data: { ...payload, channel: "stripe" } });
@@ -233,12 +243,21 @@ function CheckoutPage() {
             <section className="mt-12">
               <h2 className="eyebrow text-muted-foreground">How would you like to finish?</h2>
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                {settings.paystackEnabled && (
+                  <ChannelCard
+                    active={channel === "paystack"}
+                    onClick={() => setChannel("paystack")}
+                    icon={<CreditCard className="h-5 w-5" />}
+                    title="Pay now"
+                    copy="Card, bank transfer or USSD via Paystack. Confirmed instantly — no follow-up needed."
+                  />
+                )}
                 <ChannelCard
                   active={channel === "stripe"}
                   onClick={() => setChannel("stripe")}
                   icon={<CreditCard className="h-5 w-5" />}
-                  title="Pay now"
-                  copy="Pay securely by card (Apple Pay & Google Pay supported) via Stripe. Confirmed instantly — no follow-up needed."
+                  title="Card (Stripe)"
+                  copy="Pay securely by card (Apple Pay & Google Pay supported) via Stripe."
                 />
                 {settings.enableManualTransfer && (
                 <ChannelCard

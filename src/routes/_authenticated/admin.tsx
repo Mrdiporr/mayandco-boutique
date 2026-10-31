@@ -34,6 +34,7 @@ import {
   uploadStoreImage,
   getPaymentSettings,
   saveStripeKey,
+  savePaystackKey,
 } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -1089,6 +1090,7 @@ function SettingsPanel({ data, onSaved }: { data: AdminData; onSaved: () => void
       </Button>
     </Card>
     <StripeSettings />
+    <PaystackSettings />
     </div>
   );
 }
@@ -1145,6 +1147,70 @@ function StripeSettings() {
           {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save key
         </Button>
         {data?.hasSavedKey && (
+          <Button variant="outline" onClick={() => submit("")} disabled={busy} className="rounded-none">
+            Remove key
+          </Button>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function PaystackSettings() {
+  const { data, refetch } = useQuery({
+    queryKey: ["admin-payment-settings"],
+    queryFn: () => getPaymentSettings(),
+    retry: false,
+  });
+  const [key, setKey] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (value: string) => {
+    setBusy(true);
+    try {
+      await savePaystackKey({ data: { key: value } });
+      toast.success(value ? "Paystack key saved and verified" : "Paystack key removed");
+      setKey("");
+      refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save key");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const status = data?.hasSavedPaystackKey
+    ? `Saved (${data.paystackMode} mode) — hidden for security`
+    : data?.paystackUsingFallback
+    ? "Using the Paystack key stored in project secrets"
+    : "Not set — the Pay now option is hidden";
+
+  return (
+    <Card>
+      <h2 className="font-display text-2xl">Card payments (Paystack)</h2>
+      <p className="mt-2 text-sm text-muted-foreground">Status: {status}</p>
+      <div className="mt-6">
+        <Label className="eyebrow text-muted-foreground">Paystack secret key</Label>
+        <Input
+          type="password"
+          autoComplete="off"
+          placeholder={data?.hasSavedPaystackKey ? "•••••••• enter a new key to replace" : "sk_test_… or sk_live_…"}
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          className="mt-2 rounded-none"
+        />
+        <p className="mt-2 text-xs text-muted-foreground">
+          Find it in Paystack under Settings → API Keys &amp; Webhooks. It is checked with Paystack
+          before saving and never shown again. Webhook URL after publishing:
+          {" "}
+          https://mayandco-boutique.lovable.app/api/public/paystack-webhook
+        </p>
+      </div>
+      <div className="mt-6 flex gap-3">
+        <Button onClick={() => submit(key.trim())} disabled={busy || !key.trim()} className="rounded-none">
+          {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save key
+        </Button>
+        {data?.hasSavedPaystackKey && (
           <Button variant="outline" onClick={() => submit("")} disabled={busy} className="rounded-none">
             Remove key
           </Button>

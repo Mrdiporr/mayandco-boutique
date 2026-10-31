@@ -199,6 +199,47 @@ export const verifyCardPayment = createServerFn({ method: "POST" })
     };
   });
 
+/** Create the order server-side, then open Paystack's secure payment window (card, transfer, USSD). */
+export const startPaystackPayment = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    orderInput.extend({ channel: z.literal("paystack") }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { initializePaystackPayment } = await import("@/lib/paystack.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const order = await createOrder(data);
+    const payment = await initializePaystackPayment({
+      reference: order.reference,
+      amountKobo: Math.round(order.total * 100),
+      email: data.customer.email || undefined,
+      callbackUrl: `${new URL(getRequest().url).origin}/checkout/callback?via=paystack`,
+    });
+    // Record the Paystack transaction reference so webhook/verify can find the order.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin
+      .from("orders")
+      .update({ paystack_reference: payment.reference })
+      .eq("id", order.id);
+    return { url: payment.authorizationUrl, reference: order.reference };
+  });
+
+/** Called from the Paystack return page; re-verifies with Paystack before trusting anything. */
+export const verifyPaystackPayment = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z.object({ reference: z.string().trim().min(6).max(100) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { confirmPaystackPayment } = await import("@/lib/paystack.server");
+    const result = await confirmPaystackPayment(data.reference);
+    if (!result) return { found: false as const };
+    return {
+      found: true as const,
+      paid: result.paid,
+      reference: result.reference,
+      total: result.total,
+    };
+  });
+
 const trackInput = z.object({
   reference: z.string().trim().min(4).max(40),
   phone: z.string().trim().min(7).max(30),

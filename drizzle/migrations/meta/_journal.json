@@ -15,6 +15,13 @@
       "when": 1792532526989,
       "tag": "0001_stripe_private_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793406025153,
+      "tag": "0002_add_paystack_secret_key_setting",
+      "breakpoints": true
     }
   ]
 }

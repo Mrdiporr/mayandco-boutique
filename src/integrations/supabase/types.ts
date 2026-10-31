@@ -400,16 +400,19 @@ export type Database = {
       store_private_settings: {
         Row: {
           id: boolean
+          paystack_secret_key: string
           stripe_secret_key: string
           updated_at: string
         }
         Insert: {
           id?: boolean
+          paystack_secret_key?: string
           stripe_secret_key?: string
           updated_at?: string
         }
         Update: {
           id?: boolean
+          paystack_secret_key?: string
           stripe_secret_key?: string
           updated_at?: string
         }

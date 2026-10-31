@@ -20,6 +20,22 @@ export const getStorefront = createServerFn({ method: "GET" }).handler(async () 
   );
   const categories: CategoryRecord[] = (categoriesRes.data ?? []) as CategoryRecord[];
   const s = settingsRes.data;
+
+  // Whether Paystack is configured (admin-saved key first, then the project secret).
+  // Only the boolean leaves the server — never the key itself.
+  let paystackEnabled = false;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: priv } = await supabaseAdmin
+      .from("store_private_settings")
+      .select("paystack_secret_key")
+      .eq("id", true)
+      .maybeSingle();
+    paystackEnabled = Boolean(priv?.paystack_secret_key?.trim() || process.env["PAYSTACK_SECRET_KEY"]);
+  } catch {
+    paystackEnabled = false;
+  }
+
   const settings: StoreSettings = {
     whatsappNumber: s?.whatsapp_number ?? "2348148840440",
     bankName: s?.bank_name ?? "",
@@ -29,6 +45,7 @@ export const getStorefront = createServerFn({ method: "GET" }).handler(async () 
     transferInstructions: s?.transfer_instructions ?? "",
     instagramHandle: s?.instagram_handle ?? "mayandco.ng",
     enableManualTransfer: s?.enable_manual_transfer ?? true,
+    paystackEnabled,
   };
   return { products, categories, settings };
 });
@@ -52,7 +69,7 @@ const orderInput = z.object({
     city: z.string().trim().max(100).default(""),
     state: z.string().trim().max(100).default(""),
   }),
-  channel: z.enum(["transfer", "whatsapp", "stripe"]),
+  channel: z.enum(["transfer", "whatsapp", "stripe", "paystack"]),
   items: z
     .array(
       z.object({
@@ -138,7 +155,9 @@ async function createOrder(data: OrderInput) {
 export const placeOrder = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => orderInput.parse(data))
   .handler(async ({ data }) => {
-    if (data.channel === "stripe") throw new Error("Use online payment for this option.");
+    if (data.channel !== "transfer" && data.channel !== "whatsapp") {
+      throw new Error("Use online payment for this option.");
+    }
     const { id: _id, ...result } = await createOrder(data);
     return result;
   });

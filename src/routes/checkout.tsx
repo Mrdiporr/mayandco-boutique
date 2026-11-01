@@ -303,11 +303,11 @@ function CheckoutPage() {
                 className="mt-8 w-full rounded-none py-7 text-sm tracking-[0.18em] uppercase"
               >
                 {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {channel === "stripe"
+                {(channel === "paystack" || channel === "stripe")
                   ? `Pay ${naira(total)} securely`
                   : channel === "transfer"
-                  ? `Confirm order & send proof on WhatsApp`
-                  : `Send my order to WhatsApp`}
+                    ? `Confirm order & send proof on WhatsApp`
+                    : `Send my order to WhatsApp`}
               </Button>
             </section>
           </div>

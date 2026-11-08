@@ -205,9 +205,10 @@ export const startPaystackPayment = createServerFn({ method: "POST" })
     orderInput.extend({ channel: z.literal("paystack") }).parse(data),
   )
   .handler(async ({ data }) => {
-    const { initializePaystackPayment } = await import("@/lib/paystack.server");
-    const { getRequest } = await import("@tanstack/react-start/server");
+    const { createPaystackReturnProof, initializePaystackPayment } = await import("@/lib/paystack.server");
     const order = await createOrder(data);
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const proof = await createPaystackReturnProof(order.reference);
     const payment = await initializePaystackPayment({
       reference: order.reference,
       amountKobo: Math.round(order.total * 100),
@@ -220,16 +221,29 @@ export const startPaystackPayment = createServerFn({ method: "POST" })
       .from("orders")
       .update({ paystack_reference: payment.reference })
       .eq("id", order.id);
-    return { url: payment.authorizationUrl, reference: order.reference };
+    return {
+      url: payment.authorizationUrl,
+      reference: order.reference,
+      proof,
+    };
   });
 
 /** Called from the Paystack return page; re-verifies with Paystack before trusting anything. */
 export const verifyPaystackPayment = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
-    z.object({ reference: z.string().trim().min(6).max(100) }).parse(data),
+    z
+      .object({
+        reference: z.string().trim().min(6).max(100),
+        proof: z.string().regex(/^[a-f0-9]{128}$/i),
+      })
+      .parse(data),
   )
   .handler(async ({ data }) => {
-    const { confirmPaystackPayment } = await import("@/lib/paystack.server");
+    const { confirmPaystackPayment, verifyPaystackReturnProof } =
+      await import("@/lib/paystack.server");
+    if (!(await verifyPaystackReturnProof(data.reference, data.proof))) {
+      return { found: false as const };
+    }
     const result = await confirmPaystackPayment(data.reference);
     if (!result) return { found: false as const };
     return {

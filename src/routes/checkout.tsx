@@ -127,7 +127,10 @@ function CheckoutPage() {
     };
     if (channel === "paystack") {
       try {
-        const { url } = await startPaystackPayment({ data: { ...payload, channel: "paystack" } });
+        const { url, reference, proof } = await startPaystackPayment({
+          data: { ...payload, channel: "paystack" },
+        });
+        sessionStorage.setItem(`mayandco:paystack-return:${reference}`, proof);
         window.location.href = url;
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Could not start payment. Please try again.");

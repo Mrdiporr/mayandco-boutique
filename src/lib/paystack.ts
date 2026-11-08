@@ -31,6 +31,22 @@ export async function isValidPaystackSignature(
   return timingSafeEqualHex(expected, signature.trim().toLowerCase());
 }
 
+/** Create a reference-bound bearer proof for the buyer's Paystack return page. */
+export async function createPaystackReturnProof(secret: string, reference: string): Promise<string> {
+  return hmacSha512Hex(secret, `paystack-return:${reference}`);
+}
+
+/** Verify that a return-page proof was issued for this exact order reference. */
+export async function isValidPaystackReturnProof(
+  secret: string,
+  reference: string,
+  proof: string | null,
+): Promise<boolean> {
+  if (!proof) return false;
+  const expected = await createPaystackReturnProof(secret, reference);
+  return timingSafeEqualHex(expected, proof.trim().toLowerCase());
+}
+
 /** Paystack amounts are in kobo; order totals are whole naira. */
 export const toKobo = (naira: number) => Math.round(naira * 100);
 

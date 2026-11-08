@@ -208,11 +208,15 @@ export const startPaystackPayment = createServerFn({ method: "POST" })
     const { initializePaystackPayment } = await import("@/lib/paystack.server");
     const { getRequest } = await import("@tanstack/react-start/server");
     const order = await createOrder(data);
+    const { createPaystackReturnProof } = await import("@/lib/paystack.server");
+    const callbackUrl = new URL("/checkout/callback", new URL(getRequest().url).origin);
+    callbackUrl.searchParams.set("via", "paystack");
+    callbackUrl.searchParams.set("proof", await createPaystackReturnProof(order.reference));
     const payment = await initializePaystackPayment({
       reference: order.reference,
       amountKobo: Math.round(order.total * 100),
       email: data.customer.email || undefined,
-      callbackUrl: `${new URL(getRequest().url).origin}/checkout/callback?via=paystack`,
+      callbackUrl: callbackUrl.toString(),
     });
     // Record the Paystack transaction reference so webhook/verify can find the order.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -226,10 +230,18 @@ export const startPaystackPayment = createServerFn({ method: "POST" })
 /** Called from the Paystack return page; re-verifies with Paystack before trusting anything. */
 export const verifyPaystackPayment = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
-    z.object({ reference: z.string().trim().min(6).max(100) }).parse(data),
+    z
+      .object({
+        reference: z.string().trim().min(6).max(100),
+        proof: z.string().regex(/^[a-f0-9]{128}$/i),
+      })
+      .parse(data),
   )
   .handler(async ({ data }) => {
-    const { confirmPaystackPayment } = await import("@/lib/paystack.server");
+    const { confirmPaystackPayment, verifyPaystackReturnProof } = await import("@/lib/paystack.server");
+    if (!(await verifyPaystackReturnProof(data.reference, data.proof))) {
+      return { found: false as const };
+    }
     const result = await confirmPaystackPayment(data.reference);
     if (!result) return { found: false as const };
     return {

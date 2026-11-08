@@ -12,6 +12,7 @@ export const Route = createFileRoute("/checkout/callback")({
   validateSearch: z.object({
     session_id: z.string().max(255).optional(),
     reference: z.string().max(100).optional(),
+    proof: z.string().regex(/^[a-f0-9]{128}$/i).optional(),
   }),
   head: () => ({
     meta: [
@@ -31,12 +32,12 @@ type State =
   | { kind: "failed"; reference?: string | undefined };
 
 function CallbackPage() {
-  const { session_id: sessionId, reference } = Route.useSearch();
+  const { session_id: sessionId, reference, proof } = Route.useSearch();
   const { clear } = useCart();
   const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
-    if (!sessionId && !reference) return setState({ kind: "failed" });
+    if (!sessionId && (!reference || !proof)) return setState({ kind: "failed" });
     let tries = 0;
     let cancelled = false;
     const run = async () => {
@@ -44,7 +45,7 @@ function CallbackPage() {
         // Stripe returns a session_id; Paystack appends ?reference=… to the callback URL.
         const r = sessionId
           ? await verifyCardPayment({ data: { sessionId } })
-          : await verifyPaystackPayment({ data: { reference: reference! } });
+          : await verifyPaystackPayment({ data: { reference: reference!, proof: proof! } });
         if (cancelled) return;
         if (r.found && r.paid) {
           clear();
@@ -61,7 +62,7 @@ function CallbackPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, reference]);
+  }, [sessionId, reference, proof]);
 
   return (
     <Layout>

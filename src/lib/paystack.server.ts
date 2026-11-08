@@ -1,6 +1,10 @@
 /** Paystack API client (server-only). Amounts go in kobo; totals are whole naira. */
 
-import { paymentMatchesOrder } from "@/lib/paystack";
+import {
+  createPaystackReturnProof as createReturnProof,
+  isValidPaystackReturnProof,
+  paymentMatchesOrder,
+} from "@/lib/paystack";
 
 const API = "https://api.paystack.co";
 
@@ -15,6 +19,20 @@ async function secretKey(): Promise<string> {
   const key = data?.paystack_secret_key?.trim() || process.env["PAYSTACK_SECRET_KEY"] || "";
   if (!key) throw new Error("Online payments are not set up yet. Please use bank transfer.");
   return key;
+}
+
+/** Issue a proof that lets only this checkout return page read its payment result. */
+export async function createPaystackReturnProof(reference: string): Promise<string> {
+  return createReturnProof(await secretKey(), reference);
+}
+
+/** Check the buyer's reference-bound proof before any privileged order lookup. */
+export async function verifyPaystackReturnProof(reference: string, proof: string): Promise<boolean> {
+  try {
+    return await isValidPaystackReturnProof(await secretKey(), reference, proof);
+  } catch {
+    return false;
+  }
 }
 
 async function paystack(

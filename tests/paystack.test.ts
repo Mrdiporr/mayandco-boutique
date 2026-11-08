@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
-  hmacSha512Hex, isValidPaystackSignature, normalisePhone, paymentMatchesOrder, stageForStatus, toKobo,
+  createPaystackReturnProof, hmacSha512Hex, isValidPaystackReturnProof, isValidPaystackSignature,
+  normalisePhone, paymentMatchesOrder, stageForStatus, toKobo,
 } from "../src/lib/paystack";
 
 describe("paystack webhook signature", () => {
@@ -11,6 +12,16 @@ describe("paystack webhook signature", () => {
     expect(await isValidPaystackSignature("sk_test_x", body + " ", sig)).toBe(false);
     expect(await isValidPaystackSignature("sk_test_x", body, null)).toBe(false);
     expect(await isValidPaystackSignature("", body, sig)).toBe(false);
+  });
+});
+
+describe("Paystack return proof", () => {
+  test("only authorizes the exact reference signed by the server", async () => {
+    const proof = await createPaystackReturnProof("sk_test_secret", "MC-ORDER-1");
+    expect(await isValidPaystackReturnProof("sk_test_secret", "MC-ORDER-1", proof)).toBe(true);
+    expect(await isValidPaystackReturnProof("sk_test_secret", "MC-ORDER-2", proof)).toBe(false);
+    expect(await isValidPaystackReturnProof("wrong_secret", "MC-ORDER-1", proof)).toBe(false);
+    expect(await isValidPaystackReturnProof("sk_test_secret", "MC-ORDER-1", null)).toBe(false);
   });
 });
 

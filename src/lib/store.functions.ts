@@ -206,17 +206,14 @@ export const startPaystackPayment = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { initializePaystackPayment } = await import("@/lib/paystack.server");
-    const { getRequest } = await import("@tanstack/react-start/server");
     const order = await createOrder(data);
     const { createPaystackReturnProof } = await import("@/lib/paystack.server");
-    const callbackUrl = new URL("/checkout/callback", new URL(getRequest().url).origin);
-    callbackUrl.searchParams.set("via", "paystack");
-    callbackUrl.searchParams.set("proof", await createPaystackReturnProof(order.reference));
+    const { getRequest } = await import("@tanstack/react-start/server");
     const payment = await initializePaystackPayment({
       reference: order.reference,
       amountKobo: Math.round(order.total * 100),
       email: data.customer.email || undefined,
-      callbackUrl: callbackUrl.toString(),
+      callbackUrl: `${new URL(getRequest().url).origin}/checkout/callback?via=paystack`,
     });
     // Record the Paystack transaction reference so webhook/verify can find the order.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -224,7 +221,11 @@ export const startPaystackPayment = createServerFn({ method: "POST" })
       .from("orders")
       .update({ paystack_reference: payment.reference })
       .eq("id", order.id);
-    return { url: payment.authorizationUrl, reference: order.reference };
+    return {
+      url: payment.authorizationUrl,
+      reference: order.reference,
+      proof: await createPaystackReturnProof(order.reference),
+    };
   });
 
 /** Called from the Paystack return page; re-verifies with Paystack before trusting anything. */

@@ -56,13 +56,9 @@ function CallbackPage() {
           return setState({ kind: "paid", reference: r.reference, total: r.total });
         }
         if (++tries < 4) return void setTimeout(run, 2500);
-        if (reference) sessionStorage.removeItem(`mayandco:paystack-return:${reference}`);
         setState({ kind: "failed", reference: r.found ? r.reference : undefined });
       } catch {
-        if (!cancelled) {
-          if (reference) sessionStorage.removeItem(`mayandco:paystack-return:${reference}`);
-          setState({ kind: "failed" });
-        }
+        if (!cancelled) setState({ kind: "failed" });
       }
     };
     run();

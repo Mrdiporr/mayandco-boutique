@@ -205,10 +205,10 @@ export const startPaystackPayment = createServerFn({ method: "POST" })
     orderInput.extend({ channel: z.literal("paystack") }).parse(data),
   )
   .handler(async ({ data }) => {
-    const { initializePaystackPayment } = await import("@/lib/paystack.server");
+    const { createPaystackReturnProof, initializePaystackPayment } = await import("@/lib/paystack.server");
     const order = await createOrder(data);
-    const { createPaystackReturnProof } = await import("@/lib/paystack.server");
     const { getRequest } = await import("@tanstack/react-start/server");
+    const proof = await createPaystackReturnProof(order.reference);
     const payment = await initializePaystackPayment({
       reference: order.reference,
       amountKobo: Math.round(order.total * 100),
@@ -224,7 +224,7 @@ export const startPaystackPayment = createServerFn({ method: "POST" })
     return {
       url: payment.authorizationUrl,
       reference: order.reference,
-      proof: await createPaystackReturnProof(order.reference),
+      proof,
     };
   });
 
@@ -239,7 +239,8 @@ export const verifyPaystackPayment = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    const { confirmPaystackPayment, verifyPaystackReturnProof } = await import("@/lib/paystack.server");
+    const { confirmPaystackPayment, verifyPaystackReturnProof } =
+      await import("@/lib/paystack.server");
     if (!(await verifyPaystackReturnProof(data.reference, data.proof))) {
       return { found: false as const };
     }

@@ -127,7 +127,9 @@ function CheckoutPage() {
     };
     if (channel === "paystack") {
       try {
-        const { url, reference, proof } = await startPaystackPayment({ data: { ...payload, channel: "paystack" } });
+        const { url, reference, proof } = await startPaystackPayment({
+          data: { ...payload, channel: "paystack" },
+        });
         sessionStorage.setItem(`mayandco:paystack-return:${reference}`, proof);
         window.location.href = url;
       } catch (err) {

@@ -38,7 +38,9 @@ function CallbackPage() {
   useEffect(() => {
     if (!sessionId && !reference) return setState({ kind: "failed" });
     const proof = reference ? sessionStorage.getItem(`mayandco:paystack-return:${reference}`) : null;
-    if (!sessionId && !proof) return setState({ kind: "failed", reference });
+    if (!sessionId && !proof) {
+      return setState({ kind: "failed", reference });
+    }
     let tries = 0;
     let cancelled = false;
     const run = async () => {

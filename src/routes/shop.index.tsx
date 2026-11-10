@@ -10,7 +10,7 @@ import { storefrontQuery } from "@/lib/store-queries";
 import { cn } from "@/lib/utils";
 
 const searchSchema = z.object({
-  category: z.enum(["all", "clothing", "accessories"]).catch("all"),
+  category: z.enum(["all", "clothing", "accessories"]).optional().catch("all"),
   q: z.string().optional().catch(undefined),
   sort: z.enum(["featured", "price-asc", "price-desc"]).optional().catch(undefined),
 });

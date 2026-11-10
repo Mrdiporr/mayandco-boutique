@@ -91,7 +91,7 @@ function CallbackPage() {
                 </Link>
               </Button>
               <Button asChild variant="outline" className="rounded-none py-6 sm:flex-1">
-                <Link to="/shop">Continue shopping</Link>
+                <Link to="/shop" search={{}}>Continue shopping</Link>
               </Button>
             </div>
           </>

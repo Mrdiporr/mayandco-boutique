@@ -89,7 +89,7 @@ function ProductDetail() {
     <Layout>
       <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-10">
         <nav className="eyebrow text-muted-foreground">
-          <Link to="/shop" className="hover:text-foreground">
+          <Link to="/shop" search={{}} className="hover:text-foreground">
             Shop
           </Link>
           <span className="px-2">/</span>

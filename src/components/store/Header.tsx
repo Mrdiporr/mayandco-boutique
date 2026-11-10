@@ -62,7 +62,7 @@ export function Header() {
             onMouseEnter={() => setShopOpen(true)}
             onMouseLeave={() => setShopOpen(false)}
           >
-            <Link to="/shop" className={linkClass}>
+            <Link to="/shop" search={{}} className={linkClass}>
               Shop All
             </Link>
             <div

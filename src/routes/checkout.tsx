@@ -531,7 +531,7 @@ function OrderConfirmation({
         <Link to="/track" search={{ ref: order.reference }} className="eyebrow inline-block border-b border-foreground pb-1">
           Track your order
         </Link>
-        <Link to="/shop" className="eyebrow inline-block border-b border-foreground pb-1">
+        <Link to="/shop" search={{}} className="eyebrow inline-block border-b border-foreground pb-1">
           Continue shopping
         </Link>
       </div>

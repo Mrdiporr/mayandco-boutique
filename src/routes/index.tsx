@@ -82,7 +82,7 @@ function Index() {
             <p className="eyebrow text-muted-foreground">The Edit</p>
             <h2 className="mt-3 font-display text-3xl md:text-5xl">Signature pieces</h2>
           </div>
-          <Link to="/shop" className="eyebrow hidden border-b border-foreground pb-1 md:block">
+          <Link to="/shop" search={{}} className="eyebrow hidden border-b border-foreground pb-1 md:block">
             Shop all
           </Link>
         </div>
@@ -91,6 +91,7 @@ function Index() {
         </div>
         <Link
           to="/shop"
+          search={{}}
           className="eyebrow mt-10 inline-block border-b border-foreground pb-1 md:hidden"
         >
           Shop all

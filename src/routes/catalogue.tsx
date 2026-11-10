@@ -306,7 +306,7 @@ function CataloguePage() {
               Or shop what is already in the studio.
             </h2>
           </div>
-          <Link to="/shop" className="eyebrow border-b border-foreground pb-1">
+          <Link to="/shop" search={{}} className="eyebrow border-b border-foreground pb-1">
             Shop all {store.products.length} pieces
           </Link>
         </div>

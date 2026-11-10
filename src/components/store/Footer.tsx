@@ -57,7 +57,7 @@ export function Footer() {
             <p className="eyebrow text-muted-foreground">Shop</p>
             <ul className="mt-4 space-y-3 text-sm">
               <li>
-                <Link to="/shop" className="transition-opacity hover:opacity-60">
+                <Link to="/shop" search={{}} className="transition-opacity hover:opacity-60">
                   Shop All
                 </Link>
               </li>

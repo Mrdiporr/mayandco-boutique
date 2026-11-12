@@ -189,6 +189,7 @@ export type Database = {
           shipping: number
           state: string
           status: string
+          stock_allocated: boolean
           stripe_session_id: string | null
           subtotal: number
           total: number
@@ -212,6 +213,7 @@ export type Database = {
           shipping?: number
           state?: string
           status?: string
+          stock_allocated?: boolean
           stripe_session_id?: string | null
           subtotal?: number
           total?: number
@@ -235,6 +237,7 @@ export type Database = {
           shipping?: number
           state?: string
           status?: string
+          stock_allocated?: boolean
           stripe_session_id?: string | null
           subtotal?: number
           total?: number
@@ -483,7 +486,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_store_order: {
+        Args: { p_channel: string; p_customer: Json; p_items: Json }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "user"

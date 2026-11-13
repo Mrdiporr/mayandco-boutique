@@ -73,6 +73,7 @@ export async function confirmStripePayment(sessionId: string) {
     .maybeSingle();
   if (!order) return null;
   if (order.paid_at) return { ...order, paid: true };
+  if (order.status === "cancelled") return { ...order, paid: false };
 
   const session = await stripe(`/checkout/sessions/${encodeURIComponent(sessionId)}`);
   if (!session || !sessionMatchesOrder(session, order.total)) return { ...order, paid: false };
@@ -83,12 +84,19 @@ export async function confirmStripePayment(sessionId: string) {
     .update({ status: "paid", paid_at: paidAt })
     .eq("id", order.id)
     .is("paid_at", null)
+    .neq("status", "cancelled")
     .select("id")
     .maybeSingle();
   if (updated) {
     await supabaseAdmin
       .from("order_status_events")
       .insert({ order_id: order.id, status: "paid", note: "Payment confirmed by Stripe" });
+    return { ...order, status: "paid", paid_at: paidAt, paid: true };
   }
-  return { ...order, status: "paid", paid_at: paidAt, paid: true };
+  const { data: latest } = await supabaseAdmin
+    .from("orders")
+    .select("id, reference, total, status, paid_at")
+    .eq("id", order.id)
+    .maybeSingle();
+  return latest ? { ...latest, paid: Boolean(latest.paid_at) } : null;
 }

@@ -85,6 +85,7 @@ export type Database = {
           order_id: string
           pre_order: boolean
           product_slug: string
+          product_variant_id: string | null
           quantity: number
           size: string
           unit_price: number
@@ -96,6 +97,7 @@ export type Database = {
           order_id: string
           pre_order?: boolean
           product_slug?: string
+          product_variant_id?: string | null
           quantity?: number
           size?: string
           unit_price?: number
@@ -107,6 +109,7 @@ export type Database = {
           order_id?: string
           pre_order?: boolean
           product_slug?: string
+          product_variant_id?: string | null
           quantity?: number
           size?: string
           unit_price?: number
@@ -117,6 +120,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_variant_id_fkey"
+            columns: ["product_variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
             referencedColumns: ["id"]
           },
         ]

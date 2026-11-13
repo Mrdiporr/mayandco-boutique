@@ -29,6 +29,13 @@
       "when": 1794527814031,
       "tag": "0003_atomic_checkout_stock_reservations",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794527991050,
+      "tag": "0004_checkout_variant_reservations",
+      "breakpoints": true
     }
   ]
 }

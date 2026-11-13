@@ -7,3 +7,4 @@
 - [ ] Add webhook URL in Paystack dashboard: https://mayandco-boutique.lovable.app/api/public/paystack-webhook (after publish)
 - [ ] Publish the new checkout and tracking
 - [ ] Deploy browsing-only Vercel site — blocked: Vercel project is not connected; import the repository and apply `docs/deploy/vercel.md` settings
+- [x] Validate checkout on the server and atomically reserve in-stock quantities; automatically record sold-out/overflow quantities as pre-orders

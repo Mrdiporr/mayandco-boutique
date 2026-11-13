@@ -172,14 +172,15 @@ export const saveProduct = createServerFn({ method: "POST" })
       productId = inserted.id;
     }
 
-    await sb.from("product_variants").delete().eq("product_id", productId);
     const variants = Object.entries(data.stock).map(([size, stock]) => ({
       product_id: productId,
       size,
       stock: stock ?? 0,
     }));
     if (variants.length) {
-      const { error } = await sb.from("product_variants").insert(variants);
+      const { error } = await sb
+        .from("product_variants")
+        .upsert(variants, { onConflict: "product_id,size" });
       if (error) throw new Error(error.message);
     }
     return { id: productId };

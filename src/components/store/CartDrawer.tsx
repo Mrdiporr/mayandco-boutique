@@ -61,7 +61,14 @@ export function CartDrawer() {
                       {!line.preOrder &&
                         (() => {
                           const left = stockFor(line.slug, line.size);
-                          if (left === undefined || left <= 0 || left > 2) return null;
+                          if (left === 0) {
+                            return (
+                              <p className="mt-1 text-[11px] font-medium text-accent-foreground">
+                                Now sold out — checkout will reserve this as a pre-order
+                              </p>
+                            );
+                          }
+                          if (left === undefined || left > 2) return null;
                           return (
                             <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground">
                               <span className="h-1.5 w-1.5 rounded-full bg-accent" />

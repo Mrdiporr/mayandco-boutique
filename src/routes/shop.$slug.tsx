@@ -133,20 +133,20 @@ function ProductDetail() {
                     key={s}
                     role="radio"
                     aria-checked={active}
+                    aria-label={stock === 0 ? `Size ${s}, pre-order` : `Size ${s}, ${stock} available`}
                     onClick={() => setSize(s)}
                     className={cn(
-                      "relative border py-3 text-sm transition-colors",
+                      "relative flex min-h-14 flex-col items-center justify-center gap-0.5 border py-2 text-sm transition-colors",
                       active
                         ? "border-foreground bg-foreground text-background"
                         : "border-border hover:border-foreground",
                     )}
                   >
-                    {s}
+                    <span>{s}</span>
                     {stock === 0 && (
-                      <span
-                        className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-accent"
-                        aria-hidden="true"
-                      />
+                      <span className="text-[9px] font-semibold leading-none text-accent-foreground">
+                        PRE
+                      </span>
                     )}
                   </button>
                 );
@@ -154,7 +154,7 @@ function ProductDetail() {
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
               {size === null
-                ? "Sizes marked with an amber dot are available on pre-order."
+              ? "Sizes labeled PRE are available on pre-order."
                 : isPreOrder
                   ? "This size is currently sold out — reserve it now and we fulfill within 2–3 weeks."
                   : `${selectedStock} left in size ${size} — dispatched next business day.`}

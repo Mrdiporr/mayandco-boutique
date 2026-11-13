@@ -88,22 +88,28 @@ function CheckoutPage() {
     return Object.keys(next).length === 0;
   };
 
-  const orderMessage = (reference: string, orderTotal: number) =>
+  const orderMessage = (
+    reference: string,
+    orderSubtotal: number,
+    orderShipping: number,
+    orderTotal: number,
+    orderLines: Confirmed["lines"],
+  ) =>
     [
       `MAY & CO. order ${reference}`,
       `Name: ${details.name}`,
       `Phone: ${details.phone}`,
       `Deliver to: ${details.address}, ${details.city}, ${details.state}`,
       "",
-      ...lines.map(
+      ...orderLines.map(
         (l) =>
           `• ${l.name} — size ${l.size} × ${l.quantity} — ${naira(l.price * l.quantity)}${
             l.preOrder ? " (pre-order)" : ""
           }`,
       ),
       "",
-      `Subtotal: ${naira(subtotal)}`,
-      `Shipping: ${naira(shipping)}`,
+      `Subtotal: ${naira(orderSubtotal)}`,
+      `Shipping: ${naira(orderShipping)}`,
       `Total: ${naira(orderTotal)}`,
       "",
       channel === "transfer"
@@ -123,7 +129,7 @@ function CheckoutPage() {
         city: details.city.trim(),
         state: details.state.trim(),
       },
-      items: lines.map((l) => ({ slug: l.slug, size: l.size, quantity: l.quantity, preOrder: l.preOrder })),
+      items: lines.map((l) => ({ slug: l.slug, size: l.size, quantity: l.quantity })),
     };
     if (channel === "paystack") {
       try {
@@ -160,24 +166,32 @@ function CheckoutPage() {
             state: details.state.trim(),
           },
           channel,
-          items: lines.map((l) => ({
-            slug: l.slug,
-            size: l.size,
-            quantity: l.quantity,
-            preOrder: l.preOrder,
-          })),
+          items: lines.map((l) => ({ slug: l.slug, size: l.size, quantity: l.quantity })),
         },
       });
+      const confirmedLines: CartLine[] = result.lines.map((line) => ({
+        id: `${line.slug}-${line.size}-${line.preOrder ? "pre" : "stock"}`,
+        slug: line.slug,
+        name: line.name,
+        image: line.image,
+        price: line.price,
+        size: line.size,
+        quantity: line.quantity,
+        preOrder: line.preOrder,
+      }));
       const snapshot: Confirmed = {
         reference: result.reference,
-        lines,
+        lines: confirmedLines,
         subtotal: result.subtotal,
         shipping: result.shipping,
         total: result.total,
         channel,
       };
       setConfirmed(snapshot);
-      openWhatsApp(settings.whatsappNumber, orderMessage(result.reference, result.total));
+      openWhatsApp(
+        settings.whatsappNumber,
+        orderMessage(result.reference, result.subtotal, result.shipping, result.total, confirmedLines),
+      );
       clear();
       toast.success(`Order ${result.reference} sent to the studio`);
     } catch {

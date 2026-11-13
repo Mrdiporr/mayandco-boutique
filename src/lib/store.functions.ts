@@ -74,9 +74,8 @@ const orderInput = z.object({
     .array(
       z.object({
         slug: z.string().trim().min(1).max(120),
-        size: z.string().trim().max(10).default(""),
+        size: z.enum(["S", "M", "L", "XL", "XXL"]),
         quantity: z.number().int().min(1).max(20),
-        preOrder: z.boolean().default(false),
       }),
     )
     .min(1)
@@ -85,71 +84,61 @@ const orderInput = z.object({
 
 type OrderInput = z.infer<typeof orderInput>;
 
-/** Server-only: price items from the database and write the order with the service role. */
+const createdOrderSchema = z.object({
+  id: z.string().uuid(),
+  reference: z.string().min(4).max(40),
+  subtotal: z.number().int().nonnegative(),
+  shipping: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+  lines: z.array(
+    z.object({
+      slug: z.string(),
+      name: z.string(),
+      image: z.string(),
+      size: z.enum(["S", "M", "L", "XL", "XXL"]),
+      quantity: z.number().int().positive(),
+      price: z.number().int().nonnegative(),
+      preOrder: z.boolean(),
+    }),
+  ),
+});
+
+/** Server-only: database validates the order, reserves available stock and creates all order rows atomically. */
 async function createOrder(data: OrderInput) {
-  const sb = publicSupabase();
-  const slugs = [...new Set(data.items.map((i) => i.slug))];
-  const [{ data: products }, { data: settings }] = await Promise.all([
-    sb.from("products").select("slug, name, price").in("slug", slugs).eq("active", true),
-    sb.from("store_settings").select("shipping_fee, enable_manual_transfer").maybeSingle(),
-  ]);
-  if (data.channel === "transfer" && settings?.enable_manual_transfer === false) {
-    throw new Error("Manual bank transfer is turned off. Please pay online.");
-  }
-
-  const priced = data.items.flatMap((item) => {
-    const product = (products ?? []).find((p) => p.slug === item.slug);
-    if (!product) return [];
-    return [
-      {
-        product_slug: product.slug,
-        name: product.name,
-        size: item.size,
-        quantity: item.quantity,
-        unit_price: product.price,
-        pre_order: item.preOrder,
-      },
-    ];
-  });
-  if (priced.length === 0) throw new Error("No valid items in this order.");
-
-  const subtotal = priced.reduce((n, l) => n + l.unit_price * l.quantity, 0);
-  const shipping = settings?.shipping_fee ?? 5000;
-  const reference = `MC-${Date.now().toString(36).toUpperCase()}`;
-
-  // Orders are written with the service role: prices/totals are computed here,
-  // and no public API caller can insert or tamper with order rows.
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: result, error } = await supabaseAdmin.rpc("create_store_order", {
+    p_customer: data.customer,
+    p_channel: data.channel,
+    p_items: data.items.map(({ slug, size, quantity }) => ({ slug, size, quantity })),
+  });
+  if (error || !result) {
+    if (error?.code === "P0001") throw new Error(error.message);
+    throw new Error("We could not validate and reserve your order. Please refresh your bag and try again.");
+  }
+  try {
+    return createdOrderSchema.parse(result);
+  } catch {
+    throw new Error("We could not confirm your order details. Please contact the studio before paying.");
+  }
+}
 
-  const { data: order, error } = await supabaseAdmin
+async function cancelUnpaidOrder(orderId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: cancelled } = await supabaseAdmin
     .from("orders")
-    .insert({
-      reference,
-      customer_name: data.customer.name,
-      email: data.customer.email,
-      phone: data.customer.phone,
-      address: data.customer.address,
-      city: data.customer.city,
-      state: data.customer.state,
-      channel: data.channel,
-      status: data.channel === "whatsapp" ? "awaiting_whatsapp" : "pending_payment",
-      subtotal,
-      shipping,
-      total: subtotal + shipping,
-      has_pre_order: priced.some((l) => l.pre_order),
-    })
-    .select("id, reference")
-    .single();
-  if (error || !order) throw new Error("Could not save the order. Please try again.");
-
-  await Promise.all([
-    supabaseAdmin.from("order_items").insert(priced.map((l) => ({ ...l, order_id: order.id }))),
-    supabaseAdmin
-      .from("order_status_events")
-      .insert({ order_id: order.id, status: "received", note: "" }),
-  ]);
-
-  return { id: order.id, reference: order.reference, subtotal, shipping, total: subtotal + shipping };
+    .update({ status: "cancelled" })
+    .eq("id", orderId)
+    .eq("status", "pending_payment")
+    .is("paid_at", null)
+    .select("id")
+    .maybeSingle();
+  if (cancelled) {
+    await supabaseAdmin.from("order_status_events").insert({
+      order_id: orderId,
+      status: "cancelled",
+      note: "Payment checkout could not be started; reserved stock was released.",
+    });
+  }
 }
 
 export const placeOrder = createServerFn({ method: "POST" })
@@ -158,7 +147,7 @@ export const placeOrder = createServerFn({ method: "POST" })
     if (data.channel !== "transfer" && data.channel !== "whatsapp") {
       throw new Error("Use online payment for this option.");
     }
-    const { id: _id, ...result } = await createOrder(data);
+    const result = await createOrder(data);
     return result;
   });
 
@@ -168,18 +157,28 @@ export const startCardPayment = createServerFn({ method: "POST" })
     orderInput.extend({ channel: z.literal("stripe") }).parse(data),
   )
   .handler(async ({ data }) => {
-    const { createCheckoutSession } = await import("@/lib/stripe.server");
-    const { getRequest } = await import("@tanstack/react-start/server");
-    const order = await createOrder(data);
-    const session = await createCheckoutSession({
-      orderReference: order.reference,
-      amountKobo: Math.round(order.total * 100),
-      email: data.customer.email || undefined,
-      origin: new URL(getRequest().url).origin,
-    });
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.from("orders").update({ stripe_session_id: session.id }).eq("id", order.id);
-    return { url: session.url, reference: order.reference };
+    let order: Awaited<ReturnType<typeof createOrder>> | undefined;
+    try {
+      const { createCheckoutSession } = await import("@/lib/stripe.server");
+      const { getRequest } = await import("@tanstack/react-start/server");
+      order = await createOrder(data);
+      const session = await createCheckoutSession({
+        orderReference: order.reference,
+        amountKobo: Math.round(order.total * 100),
+        email: data.customer.email || undefined,
+        origin: new URL(getRequest().url).origin,
+      });
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error } = await supabaseAdmin
+        .from("orders")
+        .update({ stripe_session_id: session.id })
+        .eq("id", order.id);
+      if (error) throw new Error("Could not link your secure payment session to the order.");
+      return { url: session.url, reference: order.reference };
+    } catch (error) {
+      if (order) await cancelUnpaidOrder(order.id);
+      throw error;
+    }
   });
 
 /** Called from the Stripe return page; re-verifies with Stripe before trusting anything. */
@@ -205,27 +204,33 @@ export const startPaystackPayment = createServerFn({ method: "POST" })
     orderInput.extend({ channel: z.literal("paystack") }).parse(data),
   )
   .handler(async ({ data }) => {
-    const { createPaystackReturnProof, initializePaystackPayment } = await import("@/lib/paystack.server");
-    const order = await createOrder(data);
-    const { getRequest } = await import("@tanstack/react-start/server");
-    const proof = await createPaystackReturnProof(order.reference);
-    const payment = await initializePaystackPayment({
-      reference: order.reference,
-      amountKobo: Math.round(order.total * 100),
-      email: data.customer.email || undefined,
-      callbackUrl: `${new URL(getRequest().url).origin}/checkout/callback?via=paystack`,
-    });
-    // Record the Paystack transaction reference so webhook/verify can find the order.
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin
-      .from("orders")
-      .update({ paystack_reference: payment.reference })
-      .eq("id", order.id);
-    return {
-      url: payment.authorizationUrl,
-      reference: order.reference,
-      proof,
-    };
+    let order: Awaited<ReturnType<typeof createOrder>> | undefined;
+    try {
+      const { createPaystackReturnProof, initializePaystackPayment } = await import("@/lib/paystack.server");
+      order = await createOrder(data);
+      const { getRequest } = await import("@tanstack/react-start/server");
+      const proof = await createPaystackReturnProof(order.reference);
+      const payment = await initializePaystackPayment({
+        reference: order.reference,
+        amountKobo: Math.round(order.total * 100),
+        email: data.customer.email || undefined,
+        callbackUrl: `${new URL(getRequest().url).origin}/checkout/callback?via=paystack`,
+      });
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error } = await supabaseAdmin
+        .from("orders")
+        .update({ paystack_reference: payment.reference })
+        .eq("id", order.id);
+      if (error) throw new Error("Could not link your secure payment to the order.");
+      return {
+        url: payment.authorizationUrl,
+        reference: order.reference,
+        proof,
+      };
+    } catch (error) {
+      if (order) await cancelUnpaidOrder(order.id);
+      throw error;
+    }
   });
 
 /** Called from the Paystack return page; re-verifies with Paystack before trusting anything. */

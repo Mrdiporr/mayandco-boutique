@@ -50,5 +50,8 @@ export const emptyStock = (): Record<Size, number> => ({ S: 0, M: 0, L: 0, XL: 0
 export const totalStock = (product: Product) =>
   SIZES.reduce((sum, size) => sum + (product.stock[size] ?? 0), 0);
 
+export const matchesCategory = (product: Pick<Product, "category">, category: string | undefined) =>
+  !category || category === "all" || product.category === category;
+
 export const availableSizes = (product: Product) =>
   SIZES.filter((size) => (product.stock[size] ?? 0) > 0);

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Layout, PageHeader } from "@/components/store/Layout";
 import { ProductGrid } from "@/components/store/ProductGrid";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { SIZES, totalStock, type Size } from "@/lib/products";
+import { matchesCategory, SIZES, totalStock, type Size } from "@/lib/products";
 import { storefrontQuery } from "@/lib/store-queries";
 import { cn } from "@/lib/utils";
 
@@ -58,7 +58,7 @@ function ShopPage() {
       ![p.name, p.category, p.editorial].some((f) => f.toLowerCase().includes(term))
     )
       return false;
-    if (category !== "all" && p.category !== category) return false;
+    if (!matchesCategory(p, category)) return false;
     if (size !== "all" && p.stock[size] === 0 && totalStock(p) > 0) return false;
     if (availability === "in-stock" && totalStock(p) === 0) return false;
     if (availability === "pre-order" && totalStock(p) > 0) return false;
